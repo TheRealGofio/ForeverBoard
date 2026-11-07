@@ -1,0 +1,13 @@
+## Interface: 16001, 11506, 11505, 11504, 11503, 11502, 11500, 11200
+## Title: |cff00ccffForeverBoard|r
+## Notes: SoundBoard sincronizado para grupo y banda en WoW Forever / Classic Era.
+## Author: Holgar Hachatormenta
+## Version: 1.0.0
+## SavedVariables: ForeverBoardDB
+## X-Category: Audio & Video
+## X-Website: https://github.com/TheRealGofio/ForeverBoard
+## X-Feedback: https://github.com/TheRealGofio/ForeverBoard/issues
+
+Sounds.lua
+Core.lua
+UI.lua
