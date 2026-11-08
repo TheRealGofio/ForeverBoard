@@ -9,5 +9,6 @@
 ## X-Feedback: https://github.com/TheRealGofio/ForeverBoard/issues
 
 Sounds.lua
+Localization.lua
 Core.lua
 UI.lua

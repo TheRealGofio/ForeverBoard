@@ -52,6 +52,7 @@ end
 
 -- Envío de petición de versión
 function FB:CheckVersions()
+    local L = self.L or {}
     local chatType = nil
     if IsInRaid and IsInRaid() then
         chatType = "RAID"
@@ -60,11 +61,11 @@ function FB:CheckVersions()
     end
 
     if not chatType then
-        print("|cff00ccff[ForeverBoard]|r No estás en un grupo ni en banda.")
+        print(L["NOT_IN_GROUP"] or "|cff00ccff[ForeverBoard]|r No estás en un grupo ni en banda.")
         return
     end
 
-    print("|cff00ccff[ForeverBoard]|r Comprobando versiones de ForeverBoard en el grupo/raid...")
+    print(L["CHECKING_VERSIONS"] or "|cff00ccff[ForeverBoard]|r Comprobando versiones de ForeverBoard en el grupo/raid...")
     local payload = "VER_REQ"
     if C_ChatInfo and C_ChatInfo.SendAddonMessage then
         C_ChatInfo.SendAddonMessage(self.ADDON_PREFIX, payload, chatType)
@@ -76,6 +77,7 @@ end
 -- Reproduce un sonido localmente
 function FB:PlaySound(soundId, sender, fallbackName)
     local db = ForeverBoardDB or {}
+    local L = self.L or {}
 
     -- Comprobar si está silenciado
     if db.isMuted then
@@ -89,10 +91,10 @@ function FB:PlaySound(soundId, sender, fallbackName)
 
     local sound = self.soundMap[soundId]
     if not sound then
-        -- Aviso amigable si el usuario no tiene este sonido en su pack
         local displayName = sender or "Alguien"
         local clipName = fallbackName or soundId
-        print(string.format("|cff00ccff[ForeverBoard]|r |cffffffff%s|r ha lanzado |cffffe066%s|r (|cffff9900No tienes este archivo en tu carpeta sounds|r)", displayName, clipName))
+        local tpl = L["MISSING_SOUND"] or "|cff00ccff[ForeverBoard]|r |cffffffff%s|r ha lanzado |cffffe066%s|r (|cffff9900No tienes este archivo en tu carpeta sounds|r)"
+        print(string.format(tpl, displayName, clipName))
         return false
     end
 
@@ -110,15 +112,17 @@ function FB:PlaySound(soundId, sender, fallbackName)
     end
 
     local displayName = sender or UnitName("player") or "Tú"
-    print(string.format("|cff00ccff[ForeverBoard]|r |cffffffff%s|r ha reproducido: |cffffe066%s|r", displayName, sound.name))
+    local tplPlayed = L["SOUND_PLAYED"] or "|cff00ccff[ForeverBoard]|r |cffffffff%s|r ha reproducido: |cffffe066%s|r"
+    print(string.format(tplPlayed, displayName, sound.name))
 
     return true
 end
 
 -- Gatillo manual (local + emitir a grupo/raid)
 function FB:TriggerSound(soundId)
+    local L = self.L or {}
     if not self.soundMap[soundId] then
-        print("|cff00ccff[ForeverBoard]|r Sonido no encontrado: " .. tostring(soundId))
+        print((L["SOUND_NOT_FOUND"] or "|cff00ccff[ForeverBoard]|r Sonido no encontrado: ") .. tostring(soundId))
         return
     end
 
@@ -251,14 +255,16 @@ function FB:RegisterAutoTriggers()
         if event == "PLAYER_LEVEL_UP" then
             if db.triggerLevelUp then
                 local newLevel = ...
-                FB:FireAutoTrigger(db.triggerLevelUpSound, string.format("¡Subida al nivel %s!", tostring(newLevel)))
+                local msg = string.format(FB.L["TRIG_ALERT_LEVEL"] or "¡Subida al nivel %s!", tostring(newLevel))
+                FB:FireAutoTrigger(db.triggerLevelUpSound, msg)
             end
 
         elseif event == "PLAYER_DEAD" then
             local now = GetTime()
             if db.triggerDeath and (now - lastDeadTime > 10) then
                 lastDeadTime = now
-                FB:FireAutoTrigger(db.triggerDeathSound, "¡Has muerto!")
+                local msg = FB.L["TRIG_ALERT_DEAD"] or "¡Has muerto!"
+                FB:FireAutoTrigger(db.triggerDeathSound, msg)
             end
 
         elseif event == "BOSS_KILL" or event == "ENCOUNTER_END" then
@@ -272,7 +278,8 @@ function FB:RegisterAutoTriggers()
 
                 if success then
                     lastBossKillTime = now
-                    FB:FireAutoTrigger(db.triggerBossKillSound, "¡Jefe de mazmorra o banda derrotado!")
+                    local msg = FB.L["TRIG_ALERT_BOSS"] or "¡Jefe de mazmorra o banda derrotado!"
+                    FB:FireAutoTrigger(db.triggerBossKillSound, msg)
                 end
             end
         end
