@@ -128,9 +128,11 @@ function FB:RefreshSoundList()
                 row.star:SetPoint("LEFT", row.btn, "RIGHT", 2, 0)
                 row.star:SetWidth(starWidth)
                 if isFav then
-                    row.star:SetText("|cffffd700★|r")
+                    row.star.icon:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcon_1") -- Estrella dorada de raid de WoW
+                    row.star.icon:SetVertexColor(1, 1, 1, 1)
                 else
-                    row.star:SetText("|cff666666☆|r")
+                    row.star.icon:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcon_1")
+                    row.star.icon:SetVertexColor(0.25, 0.25, 0.25, 0.5) -- Apagada / Gris
                 end
                 row.star:Show()
 
@@ -238,7 +240,7 @@ function FB:CreateUI()
     tabFavBtn = CreateFrame("Button", "ForeverBoardTabFav", mainFrame, "UIPanelButtonTemplate")
     tabFavBtn:SetSize(80, 20)
     tabFavBtn:SetPoint("LEFT", tabAllBtn, "RIGHT", 4, 0)
-    tabFavBtn:SetText("★ Favoritos")
+    tabFavBtn:SetText("Favoritos")
     tabFavBtn:SetScript("OnClick", function()
         FB:SetTab("FAV")
     end)
@@ -372,6 +374,12 @@ function FB:CreateUI()
 
         local star = CreateFrame("Button", "ForeverBoardStar_" .. item.id, contentFrame, "UIPanelButtonTemplate")
         star:SetHeight(buttonHeight)
+
+        local starIcon = star:CreateTexture(nil, "ARTWORK")
+        starIcon:SetSize(16, 16)
+        starIcon:SetPoint("CENTER", star, "CENTER", 0, 0)
+        star.icon = starIcon
+
         star:SetScript("OnClick", function()
             FB:ToggleFavorite(item.id)
         end)
