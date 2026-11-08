@@ -10,12 +10,26 @@ if not exist "sounds" (
     exit /b 1
 )
 
-echo Generando Sounds.lua desde los archivos de la carpeta sounds...
+echo ======================================================
+echo    ForeverBoard - Gestor y Actualizador de Sonidos
+echo ======================================================
+echo.
 
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
     "$soundsDir = Join-Path (Get-Location) 'sounds';" ^
     "$outputFile = Join-Path (Get-Location) 'Sounds.lua';" ^
-    "$files = Get-ChildItem -Path $soundsDir -File | Where-Object { $_.Extension -match '^\.(mp3|ogg|wav)$' } | Sort-Object Name;" ^
+    "$allFiles = Get-ChildItem -Path $soundsDir -File;" ^
+    "$validExts = @('.mp3', '.ogg', '.wav');" ^
+    "$audioFiles = $allFiles | Where-Object { $validExts -contains $_.Extension.ToLower() } | Sort-Object Name;" ^
+    "$otherFiles = $allFiles | Where-Object { $validExts -notcontains $_.Extension.ToLower() };" ^
+    "if ($otherFiles) {" ^
+    "    Write-Host '[AVISO] Se han detectado archivos con formatos no directos para WoW:' -ForegroundColor Yellow;" ^
+    "    foreach ($of in $otherFiles) {" ^
+    "        Write-Host ('   - ' + $of.Name + ' (se recomienda convertir a .mp3)') -ForegroundColor Yellow;" ^
+    "    };" ^
+    "    Write-Host '';" ^
+    "};" ^
+    "Write-Host ('Indexando ' + $audioFiles.Count + ' archivo(s) de audio compatibles...') -ForegroundColor Cyan;" ^
     "$lines = New-Object System.Collections.Generic.List[string];" ^
     "$lines.Add('--[[');" ^
     "$lines.Add('    ForeverBoard - Catalogo generado automaticamente');" ^
@@ -23,7 +37,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
     "$lines.Add('--]]');" ^
     "$lines.Add('');" ^
     "$lines.Add('ForeverBoard_Sounds = {');" ^
-    "foreach ($f in $files) {" ^
+    "foreach ($f in $audioFiles) {" ^
     "    $rawName = [System.IO.Path]::GetFileNameWithoutExtension($f.Name);" ^
     "    $cleanId = ($rawName.ToLower() -replace '[^a-z0-9_]', '_') -replace '_+', '_';" ^
     "    $cleanId = $cleanId.Trim('_');" ^
@@ -32,20 +46,33 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
     "    $prettyName = (Get-Culture).TextInfo.ToTitleCase($prettyName);" ^
     "    $escapedFile = $f.Name.Replace('\', '\\').Replace('\"', '\"');" ^
     "    $escapedName = $prettyName.Replace('\', '\\').Replace('\"', '\"');" ^
+    "    if ($f.Extension.ToLower() -eq '.ogg') {" ^
+    "        try {" ^
+    "            $bytes = [System.IO.File]::ReadAllBytes($f.FullName);" ^
+    "            $header = [System.Text.Encoding]::ASCII.GetString($bytes[28..35]);" ^
+    "            if ($header -eq 'OpusHead') {" ^
+    "                Write-Host ('   [!] ALERTA: ' + $f.Name + ' es Ogg Opus. WoW solo admite Ogg Vorbis o MP3. Convertir a MP3 si no suena.') -ForegroundColor Red;" ^
+    "            }" ^
+    "        } catch {}" ^
+    "    };" ^
     "    $lines.Add('    {');" ^
     "    $lines.Add('        id = \"' + $cleanId + '\",');" ^
     "    $lines.Add('        name = \"' + $escapedName + '\",');" ^
     "    $lines.Add('        file = \"' + $escapedFile + '\",');" ^
     "    $lines.Add('        desc = \"Audio: ' + $escapedFile + '\",');" ^
     "    $lines.Add('    },');" ^
+    "    Write-Host ('   [+] ' + $escapedName + ' -> ' + $escapedFile) -ForegroundColor Green;" ^
     "};" ^
     "$lines.Add('}');" ^
     "$utf8NoBom = New-Object System.Text.UTF8Encoding($false);" ^
     "[System.IO.File]::WriteAllLines($outputFile, $lines, $utf8NoBom);"
 
 if %ERRORLEVEL% equ 0 (
-    echo [OK] Sounds.lua actualizado correctamente.
+    echo.
+    echo [OK] Sounds.lua generado y actualizado con exito.
+    echo Recuerda: si anadiste archivos de audio nuevos en disco, reinicia el juego WoW una vez.
 ) else (
+    echo.
     echo [ERROR] Ocurrio un error al generar Sounds.lua.
 )
 
