@@ -2,7 +2,7 @@
 ## Title: |cff00ccffForeverBoard|r
 ## Notes: SoundBoard sincronizado para grupo y banda en WoW Forever / Classic Era.
 ## Author: Holgar Hachatormenta
-## Version: 1.1.0
+## Version: 1.2.0
 ## SavedVariables: ForeverBoardDB
 ## X-Category: Audio & Video
 ## X-Website: https://github.com/TheRealGofio/ForeverBoard

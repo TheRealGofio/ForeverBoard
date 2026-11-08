@@ -6,6 +6,22 @@ El formato sigue las convenciones de [Keep a Changelog](https://keepachangelog.c
 
 ---
 
+## [1.2.0] - 2026-11-08
+
+### 🎨 Gran Rediseño de Interfaz (Estilo Discord Soundboard)
+- **Rejilla Adaptativa Multi-Columna (Dynamic Grid)**:
+  - Los sonidos se organizan automáticamente en 2, 3 o 4 columnas según el ancho del panel, aprovechando al máximo el espacio en pantalla.
+- **Tarjetas de Audio (Tiles) con Iconos Temáticos de WoW**:
+  - Cada clip dispone de su propio icono nativo de WoW (armas, magias, calaveras, cuernos, animales), efecto hover luminoso y estrella de favoritos integrada en la esquina de la tarjeta.
+- **Pestañas de Navegación con Contadores en Vivo**:
+  - Nuevas pestañas con recuento en tiempo real: `Todos (13)` y `Favoritos (X)`, además de contador global en el pie inferior.
+- **Tarjetas de Configuración para Eventos**:
+  - Pestaña `Eventos` rediseñada en tarjetas independientes con icono, checkbox y menú desplegable flotante con scroll.
+- **Compatibilidad 100% de fuentes WoW**:
+  - Eliminados todos los glifos Unicode incompatibles en botones e indicadores.
+
+---
+
 ## [1.1.0] - 2026-11-08
 
 ### ✨ Novedades
