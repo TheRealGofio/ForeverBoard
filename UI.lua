@@ -1,7 +1,7 @@
 --[[
     ForeverBoard - UI
-    Ventana flotante con buscador, pestañas (Todos / ⭐ Favoritos),
-    gestión de favoritos con estrella rápida, control de Mute y minimapa.
+    Ventana flotante con buscador, pestañas (Todos / ⭐ Favoritos / ⚡ Triggers),
+    gestión de favoritos, triggers automáticos y botón en minimapa.
 ]]
 
 ForeverBoard = ForeverBoard or {}
@@ -12,11 +12,13 @@ local searchBox = nil
 local soundRows = {}
 local contentFrame = nil
 local scrollFrame = nil
+local triggerContent = nil
 local muteBtn = nil
 local combatCheck = nil
-local currentTab = "ALL" -- "ALL" o "FAV"
+local currentTab = "ALL" -- "ALL", "FAV", o "TRIGGERS"
 local tabAllBtn = nil
 local tabFavBtn = nil
+local tabTrigBtn = nil
 
 -- Función auxiliar para trim compatible con todas las versiones de Lua en WoW
 local function strTrim(s)
@@ -52,24 +54,38 @@ function FB:ToggleFavorite(soundId)
     self:RefreshSoundList()
 end
 
--- Cambia la pestaña activa (Todos / Favoritos)
+-- Cambia la pestaña activa (Todos / Favoritos / Triggers)
 function FB:SetTab(tab)
     currentTab = tab
-    if tabAllBtn and tabFavBtn then
+    if tabAllBtn and tabFavBtn and tabTrigBtn then
+        tabAllBtn:UnlockHighlight()
+        tabFavBtn:UnlockHighlight()
+        tabTrigBtn:UnlockHighlight()
+
         if currentTab == "ALL" then
             tabAllBtn:LockHighlight()
-            tabFavBtn:UnlockHighlight()
-        else
+        elseif currentTab == "FAV" then
             tabFavBtn:LockHighlight()
-            tabAllBtn:UnlockHighlight()
+        elseif currentTab == "TRIGGERS" then
+            tabTrigBtn:LockHighlight()
         end
     end
-    self:RefreshSoundList()
+
+    if currentTab == "TRIGGERS" then
+        if scrollFrame then scrollFrame:Hide() end
+        if searchBox then searchBox:Hide() end
+        if triggerContent then triggerContent:Show() end
+    else
+        if triggerContent then triggerContent:Hide() end
+        if scrollFrame then scrollFrame:Show() end
+        if searchBox then searchBox:Show() end
+        self:RefreshSoundList()
+    end
 end
 
 -- Actualiza la visibilidad y posición de los botones según el filtro de búsqueda y favoritos
 function FB:RefreshSoundList()
-    if not contentFrame then return end
+    if not contentFrame or currentTab == "TRIGGERS" then return end
 
     local filter = ""
     if searchBox and searchBox.GetText then
@@ -103,13 +119,11 @@ function FB:RefreshSoundList()
             end
 
             if matchesTab and matchesFilter then
-                -- Actualizar botón de sonido
                 row.btn:ClearAllPoints()
                 row.btn:SetPoint("TOPLEFT", contentFrame, "TOPLEFT", 0, currentY)
                 row.btn:SetWidth(btnWidth)
                 row.btn:Show()
 
-                -- Actualizar botón de estrella
                 row.star:ClearAllPoints()
                 row.star:SetPoint("LEFT", row.btn, "RIGHT", 2, 0)
                 row.star:SetWidth(starWidth)
@@ -207,14 +221,14 @@ function FB:CreateUI()
     muteBtn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:AddLine("Silenciar / Activar sonido", 1, 1, 1)
-        GameTooltip:AddLine("Pulsa para silenciar temporalmente los sonidos entrantes.", 0.8, 0.8, 0.8, true)
+        GameTooltip:AddLine("Pulsa para silenciar temporalmente los sonidos.", 0.8, 0.8, 0.8, true)
         GameTooltip:Show()
     end)
     muteBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
-    -- Pestañas "Todos" y "⭐ Favoritos"
+    -- Pestañas "Todos", "⭐ Favoritos" y "⚡ Eventos"
     tabAllBtn = CreateFrame("Button", "ForeverBoardTabAll", mainFrame, "UIPanelButtonTemplate")
-    tabAllBtn:SetSize(75, 20)
+    tabAllBtn:SetSize(62, 20)
     tabAllBtn:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 14, -32)
     tabAllBtn:SetText("Todos")
     tabAllBtn:SetScript("OnClick", function()
@@ -222,11 +236,19 @@ function FB:CreateUI()
     end)
 
     tabFavBtn = CreateFrame("Button", "ForeverBoardTabFav", mainFrame, "UIPanelButtonTemplate")
-    tabFavBtn:SetSize(90, 20)
+    tabFavBtn:SetSize(80, 20)
     tabFavBtn:SetPoint("LEFT", tabAllBtn, "RIGHT", 4, 0)
     tabFavBtn:SetText("★ Favoritos")
     tabFavBtn:SetScript("OnClick", function()
         FB:SetTab("FAV")
+    end)
+
+    tabTrigBtn = CreateFrame("Button", "ForeverBoardTabTrig", mainFrame, "UIPanelButtonTemplate")
+    tabTrigBtn:SetSize(76, 20)
+    tabTrigBtn:SetPoint("LEFT", tabFavBtn, "RIGHT", 4, 0)
+    tabTrigBtn:SetText("⚡ Eventos")
+    tabTrigBtn:SetScript("OnClick", function()
+        FB:SetTab("TRIGGERS")
     end)
 
     -- Caja de búsqueda debajo de las pestañas
@@ -242,6 +264,61 @@ function FB:CreateUI()
         self:SetText("")
         self:ClearFocus()
     end)
+
+    -- ==========================================
+    -- Panel de Triggers Automáticos
+    -- ==========================================
+    triggerContent = CreateFrame("Frame", "ForeverBoardTriggerContent", mainFrame)
+    triggerContent:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 14, -60)
+    triggerContent:SetPoint("BOTTOMRIGHT", mainFrame, "BOTTOMRIGHT", -14, 34)
+    triggerContent:Hide()
+
+    local trigTitle = triggerContent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    trigTitle:SetPoint("TOPLEFT", triggerContent, "TOPLEFT", 4, -4)
+    trigTitle:SetText("|cffffe066Disparadores Automáticos:|r")
+
+    -- Checkbox 1: Subida de Nivel
+    local chkLevel = CreateFrame("CheckButton", "ForeverBoardChkLevel", triggerContent, "UICheckButtonTemplate")
+    chkLevel:SetSize(22, 22)
+    chkLevel:SetPoint("TOPLEFT", trigTitle, "BOTTOMLEFT", 0, -8)
+    chkLevel:SetChecked(ForeverBoardDB and ForeverBoardDB.triggerLevelUp)
+    chkLevel:SetScript("OnClick", function(self)
+        ForeverBoardDB.triggerLevelUp = self:GetChecked()
+    end)
+    local lblLevel = triggerContent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    lblLevel:SetPoint("LEFT", chkLevel, "RIGHT", 4, 0)
+    lblLevel:SetText("Subida de nivel (Ding!)")
+
+    -- Checkbox 2: Victoria de Boss
+    local chkBoss = CreateFrame("CheckButton", "ForeverBoardChkBoss", triggerContent, "UICheckButtonTemplate")
+    chkBoss:SetSize(22, 22)
+    chkBoss:SetPoint("TOPLEFT", chkLevel, "BOTTOMLEFT", 0, -6)
+    chkBoss:SetChecked(ForeverBoardDB and ForeverBoardDB.triggerBossKill)
+    chkBoss:SetScript("OnClick", function(self)
+        ForeverBoardDB.triggerBossKill = self:GetChecked()
+    end)
+    local lblBoss = triggerContent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    lblBoss:SetPoint("LEFT", chkBoss, "RIGHT", 4, 0)
+    lblBoss:SetText("Victoria en Boss (Raid / Mazmorra)")
+
+    -- Checkbox 3: Muerte propia
+    local chkDead = CreateFrame("CheckButton", "ForeverBoardChkDead", triggerContent, "UICheckButtonTemplate")
+    chkDead:SetSize(22, 22)
+    chkDead:SetPoint("TOPLEFT", chkBoss, "BOTTOMLEFT", 0, -6)
+    chkDead:SetChecked(ForeverBoardDB and ForeverBoardDB.triggerDeath)
+    chkDead:SetScript("OnClick", function(self)
+        ForeverBoardDB.triggerDeath = self:GetChecked()
+    end)
+    local lblDead = triggerContent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    lblDead:SetPoint("LEFT", chkDead, "RIGHT", 4, 0)
+    lblDead:SetText("Muerte del personaje (Wipe)")
+
+    -- Nota explicativa
+    local note = triggerContent:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    note:SetPoint("TOPLEFT", chkDead, "BOTTOMLEFT", 4, -14)
+    note:SetPoint("RIGHT", triggerContent, "RIGHT", -4, 0)
+    note:SetJustifyH("LEFT")
+    note:SetText("Los eventos disparan automáticamente el audio configurado a ti y a tus compañeros de grupo o banda.")
 
     -- Barra inferior: Checkbox "Silenciar en combate"
     combatCheck = CreateFrame("CheckButton", "ForeverBoardCombatCheck", mainFrame, "UICheckButtonTemplate")
@@ -270,7 +347,6 @@ function FB:CreateUI()
     local buttonHeight = 28
 
     for i, item in ipairs(sounds) do
-        -- Botón principal para disparar el sonido
         local btn = CreateFrame("Button", "ForeverBoardBtn_" .. item.id, contentFrame, "UIPanelButtonTemplate")
         btn:SetHeight(buttonHeight)
         btn:SetText(item.name)
@@ -294,7 +370,6 @@ function FB:CreateUI()
             FB:TriggerSound(item.id)
         end)
 
-        -- Botón de estrella rápida para Favorito
         local star = CreateFrame("Button", "ForeverBoardStar_" .. item.id, contentFrame, "UIPanelButtonTemplate")
         star:SetHeight(buttonHeight)
         star:SetScript("OnClick", function()

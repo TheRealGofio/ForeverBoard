@@ -122,6 +122,13 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             muteInCombat = false,
             soundChannel = "Master",
             favorites = {},
+            -- Triggers automáticos
+            triggerLevelUp = true,
+            triggerLevelUpSound = "",
+            triggerDeath = false,
+            triggerDeathSound = "",
+            triggerBossKill = true,
+            triggerBossKillSound = "",
         }
         for k, v in pairs(defaults) do
             if ForeverBoardDB[k] == nil then
@@ -131,6 +138,9 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
 
         if FB.CreateMinimapButton then
             FB:CreateMinimapButton()
+        end
+        if FB.RegisterAutoTriggers then
+            FB:RegisterAutoTriggers()
         end
 
         print("|cff00ccff[ForeverBoard]|r Addon cargado. Escribe |cffffffff/fb|r o |cffffffff/foreverboard|r para abrir el SoundBoard.")
@@ -152,7 +162,71 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
     end
 end)
 
--- Comandos de chat (/fb o /foreverboard)
+-- ==========================================================
+-- Triggers automáticos por eventos del juego
+-- ==========================================================
+function FB:GetFirstValidSound()
+    local sounds = ForeverBoard_Sounds or {}
+    if #sounds > 0 then
+        return sounds[1].id
+    end
+    return nil
+end
+
+function FB:FireAutoTrigger(soundId, reason)
+    if not soundId or soundId == "" then
+        soundId = self:GetFirstValidSound()
+    end
+
+    if soundId and self.soundMap[soundId] then
+        print(string.format("|cff00ccff[ForeverBoard Trigger]|r %s", reason))
+        self:TriggerSound(soundId)
+    end
+end
+
+local triggerFrame = CreateFrame("Frame")
+function FB:RegisterAutoTriggers()
+    triggerFrame:RegisterEvent("PLAYER_LEVEL_UP")
+    triggerFrame:RegisterEvent("PLAYER_DEAD")
+    triggerFrame:RegisterEvent("BOSS_KILL")
+    triggerFrame:RegisterEvent("ENCOUNTER_END")
+
+    local lastDeadTime = 0
+    local lastBossKillTime = 0
+
+    triggerFrame:SetScript("OnEvent", function(self, event, ...)
+        local db = ForeverBoardDB or {}
+
+        if event == "PLAYER_LEVEL_UP" then
+            if db.triggerLevelUp then
+                local newLevel = ...
+                FB:FireAutoTrigger(db.triggerLevelUpSound, string.format("¡Subida al nivel %s!", tostring(newLevel)))
+            end
+
+        elseif event == "PLAYER_DEAD" then
+            local now = GetTime()
+            if db.triggerDeath and (now - lastDeadTime > 10) then
+                lastDeadTime = now
+                FB:FireAutoTrigger(db.triggerDeathSound, "¡Has muerto!")
+            end
+
+        elseif event == "BOSS_KILL" or event == "ENCOUNTER_END" then
+            local now = GetTime()
+            if db.triggerBossKill and (now - lastBossKillTime > 15) then
+                local success = true
+                if event == "ENCOUNTER_END" then
+                    local encounterID, encounterName, difficultyID, groupSize, successFlag = ...
+                    success = (successFlag == 1)
+                end
+
+                if success then
+                    lastBossKillTime = now
+                    FB:FireAutoTrigger(db.triggerBossKillSound, "¡Jefe de mazmorra o banda derrotado!")
+                end
+            end
+        end
+    end)
+end
 SLASH_FOREVERBOARD1 = "/fb"
 SLASH_FOREVERBOARD2 = "/foreverboard"
 SlashCmdList["FOREVERBOARD"] = function(msg)
