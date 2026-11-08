@@ -7,7 +7,7 @@ ForeverBoard = ForeverBoard or {}
 local FB = ForeverBoard
 
 FB.ADDON_PREFIX = "ForeverBoard"
-FB.VERSION = "1.0.0"
+FB.VERSION = "1.1.0"
 FB.SOUND_PATH = "Interface\\AddOns\\ForeverBoard\\sounds\\"
 FB.COOLDOWN = 1.5 -- Segundos de margen entre sonidos para evitar saturación
 FB.lastPlayed = 0

@@ -6,6 +6,20 @@ El formato sigue las convenciones de [Keep a Changelog](https://keepachangelog.c
 
 ---
 
+## [1.1.0] - 2026-11-08
+
+### ✨ Novedades
+- **Catálogo de sonidos ampliado**: 13 clips de audio incluidos por defecto (FF Fanfare, Faaah, Roblox Death, Sad Violin, Rizz, etc.).
+- **Triggers automáticos configurables por distribuidor**: Valores predeterminados oficiales configurables en `Sounds.lua` (`levelUp`, `bossKill`, `death`).
+- **Menú desplegable con scroll para eventos**: Asignación rápida de cualquier sonido a cada disparador sin necesidad de rotación manual.
+- **Soporte bilingüe completo (i18n)**: Español e Inglés con detección automática según el idioma del cliente del juego.
+- **Selector de canal de audio**: Alternar entre `Master`, `SFX` y `Ambience` directamente desde la interfaz.
+- **Pestaña de Favoritos con estrellas de raid**: Marcar audios con la estrella dorada nativa de WoW y filtrarlos con un solo clic.
+- **Control de Mute & Silenciar en combate**: Botón rápido en la cabecera, comando `/fb mute` y opción de auto-mute en combate.
+- **Comprobación de versiones en grupo (`/fb version`)**: Saber al instante quién del grupo o banda tiene el addon instalado y qué versión lleva.
+
+---
+
 ## [1.0.0] - 2026-11-07
 
 ### ✨ Novedades
