@@ -88,12 +88,12 @@ function FB:ToggleFavorite(soundId)
 end
 
 -- Obtiene el nombre visual de un sonido dado su ID
-function FB:GetSoundDisplayName(soundId)
+function FB:GetSoundDisplayName(soundId, triggerType)
     if not soundId or soundId == "" then
-        local firstId = self:GetFirstValidSound()
-        local firstName = (firstId and self.soundMap and self.soundMap[firstId] and self.soundMap[firstId].name)
-        if firstName then
-            return string.format(L("DEFAULT_FIRST"), firstName)
+        local defId = self:GetDefaultTriggerSound(triggerType)
+        local defName = (defId and self.soundMap and self.soundMap[defId] and self.soundMap[defId].name)
+        if defName then
+            return string.format(L("DEFAULT_FIRST"), defName)
         else
             return L("NONE_SELECTED")
         end
@@ -146,7 +146,7 @@ function FB:CreateDropDownMenu()
     return dropDownMenu
 end
 
-function FB:OpenSoundDropDown(ownerButton, dbKey)
+function FB:OpenSoundDropDown(ownerButton, dbKey, triggerType)
     local menu = self:CreateDropDownMenu()
     if menu:IsShown() and activeDropKey == dbKey then
         menu:Hide()
@@ -164,7 +164,7 @@ function FB:OpenSoundDropDown(ownerButton, dbKey)
 
     -- Opciones: 1ª opción "Por defecto", y luego cada sonido disponible
     local options = {}
-    local defaultLabel = FB:GetSoundDisplayName("")
+    local defaultLabel = FB:GetSoundDisplayName("", triggerType)
     table.insert(options, { id = "", name = defaultLabel })
     for _, s in ipairs(sounds) do
         table.insert(options, { id = s.id, name = s.name })
@@ -476,7 +476,7 @@ function FB:CreateUI()
     btnSoundLevel:SetSize(150, 20)
     btnSoundLevel:SetPoint("TOPLEFT", chkLevel, "BOTTOMLEFT", 22, -2)
     btnSoundLevel:SetScript("OnClick", function(self)
-        FB:OpenSoundDropDown(self, "triggerLevelUpSound")
+        FB:OpenSoundDropDown(self, "triggerLevelUpSound", "levelUp")
     end)
 
     -- Trigger 2: Victoria de Boss
@@ -495,7 +495,7 @@ function FB:CreateUI()
     btnSoundBoss:SetSize(150, 20)
     btnSoundBoss:SetPoint("TOPLEFT", chkBoss, "BOTTOMLEFT", 22, -2)
     btnSoundBoss:SetScript("OnClick", function(self)
-        FB:OpenSoundDropDown(self, "triggerBossKillSound")
+        FB:OpenSoundDropDown(self, "triggerBossKillSound", "bossKill")
     end)
 
     -- Trigger 3: Muerte propia
@@ -514,18 +514,18 @@ function FB:CreateUI()
     btnSoundDead:SetSize(150, 20)
     btnSoundDead:SetPoint("TOPLEFT", chkDead, "BOTTOMLEFT", 22, -2)
     btnSoundDead:SetScript("OnClick", function(self)
-        FB:OpenSoundDropDown(self, "triggerDeathSound")
+        FB:OpenSoundDropDown(self, "triggerDeathSound", "death")
     end)
 
     function FB:UpdateTriggerButtons()
         if btnSoundLevel and ForeverBoardDB then
-            btnSoundLevel:SetText("> " .. FB:GetSoundDisplayName(ForeverBoardDB.triggerLevelUpSound))
+            btnSoundLevel:SetText("> " .. FB:GetSoundDisplayName(ForeverBoardDB.triggerLevelUpSound, "levelUp"))
         end
         if btnSoundBoss and ForeverBoardDB then
-            btnSoundBoss:SetText("> " .. FB:GetSoundDisplayName(ForeverBoardDB.triggerBossKillSound))
+            btnSoundBoss:SetText("> " .. FB:GetSoundDisplayName(ForeverBoardDB.triggerBossKillSound, "bossKill"))
         end
         if btnSoundDead and ForeverBoardDB then
-            btnSoundDead:SetText("> " .. FB:GetSoundDisplayName(ForeverBoardDB.triggerDeathSound))
+            btnSoundDead:SetText("> " .. FB:GetSoundDisplayName(ForeverBoardDB.triggerDeathSound, "death"))
         end
     end
 

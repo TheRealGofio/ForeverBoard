@@ -228,9 +228,19 @@ function FB:GetFirstValidSound()
     return nil
 end
 
-function FB:FireAutoTrigger(soundId, reason)
+function FB:GetDefaultTriggerSound(triggerType)
+    if ForeverBoard_DefaultTriggers and ForeverBoard_DefaultTriggers[triggerType] then
+        local defId = ForeverBoard_DefaultTriggers[triggerType]
+        if self.soundMap and self.soundMap[defId] then
+            return defId
+        end
+    end
+    return self:GetFirstValidSound()
+end
+
+function FB:FireAutoTrigger(soundId, reason, triggerType)
     if not soundId or soundId == "" then
-        soundId = self:GetFirstValidSound()
+        soundId = self:GetDefaultTriggerSound(triggerType)
     end
 
     if soundId and self.soundMap[soundId] then
@@ -256,7 +266,7 @@ function FB:RegisterAutoTriggers()
             if db.triggerLevelUp then
                 local newLevel = ...
                 local msg = string.format(FB.L["TRIG_ALERT_LEVEL"] or "¡Subida al nivel %s!", tostring(newLevel))
-                FB:FireAutoTrigger(db.triggerLevelUpSound, msg)
+                FB:FireAutoTrigger(db.triggerLevelUpSound, msg, "levelUp")
             end
 
         elseif event == "PLAYER_DEAD" then
@@ -264,7 +274,7 @@ function FB:RegisterAutoTriggers()
             if db.triggerDeath and (now - lastDeadTime > 10) then
                 lastDeadTime = now
                 local msg = FB.L["TRIG_ALERT_DEAD"] or "¡Has muerto!"
-                FB:FireAutoTrigger(db.triggerDeathSound, msg)
+                FB:FireAutoTrigger(db.triggerDeathSound, msg, "death")
             end
 
         elseif event == "BOSS_KILL" or event == "ENCOUNTER_END" then
@@ -279,7 +289,7 @@ function FB:RegisterAutoTriggers()
                 if success then
                     lastBossKillTime = now
                     local msg = FB.L["TRIG_ALERT_BOSS"] or "¡Jefe de mazmorra o banda derrotado!"
-                    FB:FireAutoTrigger(db.triggerBossKillSound, msg)
+                    FB:FireAutoTrigger(db.triggerBossKillSound, msg, "bossKill")
                 end
             end
         end

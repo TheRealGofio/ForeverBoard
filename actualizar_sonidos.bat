@@ -34,7 +34,19 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
     "$lines.Add('--[[');" ^
     "$lines.Add('    ForeverBoard - Catalogo generado automaticamente');" ^
     "$lines.Add('    Generado por actualizar_sonidos.bat');" ^
+    "$lines.Add('');" ^
+    "$lines.Add('    COMO DISTRIBUIDOR:');" ^
+    "$lines.Add('    Configura los sonidos por defecto para los eventos en esta tabla:');" ^
     "$lines.Add('--]]');" ^
+    "$lines.Add('');" ^
+    "$levelDef = if ($audioFiles.Count -gt 1) { '\"' + [System.IO.Path]::GetFileNameWithoutExtension($audioFiles[1].Name).ToLower().Replace(' ', '_') + '\"' } elseif ($audioFiles.Count -gt 0) { '\"' + [System.IO.Path]::GetFileNameWithoutExtension($audioFiles[0].Name).ToLower().Replace(' ', '_') + '\"' } else { '\"\"' };" ^
+    "$bossDef = if ($audioFiles.Count -gt 0) { '\"' + [System.IO.Path]::GetFileNameWithoutExtension($audioFiles[0].Name).ToLower().Replace(' ', '_') + '\"' } else { '\"\"' };" ^
+    "$deadDef = $bossDef;" ^
+    "$lines.Add('ForeverBoard_DefaultTriggers = {');" ^
+    "$lines.Add('    levelUp  = ' + $levelDef + ', -- ID del sonido por defecto para Subida de nivel (Ding!)');" ^
+    "$lines.Add('    bossKill = ' + $bossDef + ', -- ID del sonido por defecto para Victoria en Boss');" ^
+    "$lines.Add('    death    = ' + $deadDef + ', -- ID del sonido por defecto para Muerte/Wipe');" ^
+    "$lines.Add('}');" ^
     "$lines.Add('');" ^
     "$lines.Add('ForeverBoard_Sounds = {');" ^
     "foreach ($f in $audioFiles) {" ^
