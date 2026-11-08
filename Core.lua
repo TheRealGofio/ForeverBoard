@@ -49,6 +49,18 @@ end
 
 -- Reproduce un sonido localmente
 function FB:PlaySound(soundId, sender)
+    local db = ForeverBoardDB or {}
+
+    -- Comprobar si está silenciado
+    if db.isMuted then
+        return false
+    end
+
+    -- Comprobar silenciar en combate
+    if db.muteInCombat and InCombatLockdown and InCombatLockdown() then
+        return false
+    end
+
     local sound = self.soundMap[soundId]
     if not sound then
         return false
@@ -60,10 +72,11 @@ function FB:PlaySound(soundId, sender)
     end
     self.lastPlayed = now
 
+    local channel = db.soundChannel or "Master"
     local fullPath = self.SOUND_PATH .. sound.file
-    local played = PlaySoundFile(fullPath, "Master")
-    if not played then
-        PlaySoundFile(fullPath)
+    local played = PlaySoundFile(fullPath, channel)
+    if not played and channel ~= "Master" then
+        PlaySoundFile(fullPath, "Master")
     end
 
     local displayName = sender or UnitName("player") or "Tú"
@@ -96,17 +109,24 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         FB:RegisterPrefix()
 
         -- Base de datos guardada
-        ForeverBoardDB = ForeverBoardDB or {
+        ForeverBoardDB = ForeverBoardDB or {}
+        local defaults = {
             posX = 200,
             posY = -200,
             point = "TOPLEFT",
             width = 280,
-            height = 380,
+            height = 420,
             scale = 1.0,
             minimapPos = 45,
+            isMuted = false,
+            muteInCombat = false,
+            soundChannel = "Master",
+            favorites = {},
         }
-        if ForeverBoardDB.minimapPos == nil then
-            ForeverBoardDB.minimapPos = 45
+        for k, v in pairs(defaults) do
+            if ForeverBoardDB[k] == nil then
+                ForeverBoardDB[k] = v
+            end
         end
 
         if FB.CreateMinimapButton then
@@ -142,6 +162,13 @@ SlashCmdList["FOREVERBOARD"] = function(msg)
     elseif msg:find("^play ") then
         local soundId = msg:sub(6):trim()
         FB:TriggerSound(soundId)
+    elseif msg == "mute" then
+        ForeverBoardDB.isMuted = not ForeverBoardDB.isMuted
+        local status = ForeverBoardDB.isMuted and "|cffff3333SILENCIADO|r" or "|cff00ff00ACTIVADO|r"
+        print("|cff00ccff[ForeverBoard]|r Sonido " .. status)
+        if FB.UpdateMuteVisuals then
+            FB:UpdateMuteVisuals()
+        end
     elseif msg == "list" then
         print("|cff00ccff[ForeverBoard]|r Lista de sonidos disponibles:")
         for _, s in ipairs(ForeverBoard_Sounds or {}) do
@@ -151,6 +178,7 @@ SlashCmdList["FOREVERBOARD"] = function(msg)
         print("|cff00ccff[ForeverBoard]|r Uso:")
         print(" /fb - Abre/cierra la ventana del SoundBoard")
         print(" /fb play <id> - Reproduce un sonido directamente por ID")
+        print(" /fb mute - Activa/desactiva el silencio de ForeverBoard")
         print(" /fb list - Lista los IDs de sonido configurados")
     end
 end

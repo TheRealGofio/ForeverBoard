@@ -1,6 +1,6 @@
 --[[
     ForeverBoard - UI
-    Ventana flotante redimensionable con scroll, buscador de sonidos y botón en minimapa.
+    Ventana flotante con buscador, control de silencio (Mute), silenciar en combate y botón en minimapa.
 ]]
 
 ForeverBoard = ForeverBoard or {}
@@ -11,11 +11,25 @@ local searchBox = nil
 local soundButtons = {}
 local contentFrame = nil
 local scrollFrame = nil
+local muteBtn = nil
+local combatCheck = nil
 
 -- Función auxiliar para trim compatible con todas las versiones de Lua en WoW
 local function strTrim(s)
     if not s then return "" end
     return s:match("^%s*(.-)%s*$") or ""
+end
+
+-- Actualiza el aspecto visual del botón de Mute
+function FB:UpdateMuteVisuals()
+    local isMuted = ForeverBoardDB and ForeverBoardDB.isMuted
+    if muteBtn then
+        if isMuted then
+            muteBtn:SetText("|cffff4444Muted|r")
+        else
+            muteBtn:SetText("|cff88ff88Audio ON|r")
+        end
+    end
 end
 
 -- Actualiza la visibilidad y posición de los botones según el filtro de búsqueda
@@ -67,16 +81,16 @@ function FB:CreateUI()
     if mainFrame then return mainFrame end
 
     local defaultWidth = (ForeverBoardDB and ForeverBoardDB.width) or 280
-    local defaultHeight = (ForeverBoardDB and ForeverBoardDB.height) or 380
+    local defaultHeight = (ForeverBoardDB and ForeverBoardDB.height) or 400
 
     -- Ventana principal
     mainFrame = CreateFrame("Frame", "ForeverBoardFrame", UIParent)
     mainFrame:SetSize(defaultWidth, defaultHeight)
     if mainFrame.SetMinResize then
-        mainFrame:SetMinResize(220, 240)
+        mainFrame:SetMinResize(240, 280)
         mainFrame:SetMaxResize(600, 800)
     elseif mainFrame.SetResizeBounds then
-        mainFrame:SetResizeBounds(220, 240, 600, 800)
+        mainFrame:SetResizeBounds(240, 280, 600, 800)
     end
     mainFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
     mainFrame:SetMovable(true)
@@ -125,10 +139,28 @@ function FB:CreateUI()
         mainFrame:Hide()
     end)
 
+    -- Botón de Mute rápido en la cabecera
+    muteBtn = CreateFrame("Button", "ForeverBoardMuteBtn", mainFrame, "UIPanelButtonTemplate")
+    muteBtn:SetSize(72, 20)
+    muteBtn:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 12, -8)
+    muteBtn:SetScript("OnClick", function()
+        ForeverBoardDB.isMuted = not ForeverBoardDB.isMuted
+        FB:UpdateMuteVisuals()
+        local status = ForeverBoardDB.isMuted and "|cffff4444Silenciado|r" or "|cff00ff00Activado|r"
+        print("|cff00ccff[ForeverBoard]|r Sonido " .. status)
+    end)
+    muteBtn:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine("Silenciar / Activar sonido", 1, 1, 1)
+        GameTooltip:AddLine("Pulsa para silenciar temporalmente los sonidos entrantes.", 0.8, 0.8, 0.8, true)
+        GameTooltip:Show()
+    end)
+    muteBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
     -- Caja de búsqueda
     searchBox = CreateFrame("EditBox", "ForeverBoardSearchBox", mainFrame, "InputBoxTemplate")
-    searchBox:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 18, -32)
-    searchBox:SetPoint("TOPRIGHT", mainFrame, "TOPRIGHT", -18, -32)
+    searchBox:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 18, -34)
+    searchBox:SetPoint("TOPRIGHT", mainFrame, "TOPRIGHT", -18, -34)
     searchBox:SetHeight(20)
     searchBox:SetAutoFocus(false)
     searchBox:SetScript("OnTextChanged", function(self)
@@ -139,10 +171,23 @@ function FB:CreateUI()
         self:ClearFocus()
     end)
 
+    -- Barra inferior: Checkbox "Silenciar en combate"
+    combatCheck = CreateFrame("CheckButton", "ForeverBoardCombatCheck", mainFrame, "UICheckButtonTemplate")
+    combatCheck:SetSize(22, 22)
+    combatCheck:SetPoint("BOTTOMLEFT", mainFrame, "BOTTOMLEFT", 12, 6)
+    combatCheck:SetChecked(ForeverBoardDB and ForeverBoardDB.muteInCombat)
+    combatCheck:SetScript("OnClick", function(self)
+        ForeverBoardDB.muteInCombat = self:GetChecked()
+    end)
+
+    local combatLabel = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    combatLabel:SetPoint("LEFT", combatCheck, "RIGHT", 4, 0)
+    combatLabel:SetText("Silenciar en combate")
+
     -- Contenedor con scroll para los botones
     scrollFrame = CreateFrame("ScrollFrame", "ForeverBoardScrollFrame", mainFrame, "UIPanelScrollFrameTemplate")
     scrollFrame:SetPoint("TOPLEFT", searchBox, "BOTTOMLEFT", -6, -8)
-    scrollFrame:SetPoint("BOTTOMRIGHT", mainFrame, "BOTTOMRIGHT", -28, 16)
+    scrollFrame:SetPoint("BOTTOMRIGHT", mainFrame, "BOTTOMRIGHT", -28, 32)
 
     contentFrame = CreateFrame("Frame", nil, scrollFrame)
     contentFrame:SetSize(220, 1)
@@ -211,6 +256,7 @@ function FB:CreateUI()
         mainFrame:SetPoint(ForeverBoardDB.point or "CENTER", UIParent, ForeverBoardDB.point or "CENTER", ForeverBoardDB.posX, ForeverBoardDB.posY)
     end
 
+    FB:UpdateMuteVisuals()
     FB:RefreshSoundList()
 
     mainFrame:Hide()
@@ -227,6 +273,7 @@ function FB:ToggleUI()
             if searchBox then
                 searchBox:SetText("")
             end
+            FB:UpdateMuteVisuals()
             FB:RefreshSoundList()
         end
     end)
@@ -313,6 +360,8 @@ function FB:CreateMinimapButton()
         GameTooltip:AddLine("|cff00ccffForeverBoard|r", 1, 1, 1)
         GameTooltip:AddLine("Clic izquierdo: Abrir / Cerrar SoundBoard", 0.8, 0.8, 0.8)
         GameTooltip:AddLine("Clic derecho + Arrastrar: Mover icono", 0.5, 0.8, 1)
+        local status = (ForeverBoardDB and ForeverBoardDB.isMuted) and "|cffff4444Silenciado|r" or "|cff00ff00Activo|r"
+        GameTooltip:AddLine("Estado del audio: " .. status, 0.7, 0.7, 0.7)
         GameTooltip:Show()
     end)
     minimapBtn:SetScript("OnLeave", function()
