@@ -38,7 +38,8 @@ if isSpanish then
     L["CHANNEL_TOOLTIP_TITLE"] = "Canal de Audio de WoW"
     L["CHANNEL_TOOLTIP_DESC"] = "Haz clic para alternar entre Master, SFX y Ambience."
     L["CHANNEL_TOOLTIP_MASTER"] = "Master se escucha incluso si la música/efectos están bajos."
-    L["DEFAULT_FIRST"] = "Por defecto (1º)"
+    L["DEFAULT_FIRST"] = "[Por defecto: %s]"
+    L["NONE_SELECTED"] = "[Ninguno]"
     
     -- Triggers UI
     L["TRIGGERS_TITLE"] = "|cffffe066Disparadores Automáticos:|r"
@@ -91,7 +92,8 @@ else
     L["CHANNEL_TOOLTIP_TITLE"] = "WoW Audio Channel"
     L["CHANNEL_TOOLTIP_DESC"] = "Click to cycle between Master, SFX and Ambience."
     L["CHANNEL_TOOLTIP_MASTER"] = "Master can be heard even if game sound effects are low."
-    L["DEFAULT_FIRST"] = "Default (1st)"
+    L["DEFAULT_FIRST"] = "[Default: %s]"
+    L["NONE_SELECTED"] = "[None]"
     
     -- Triggers UI
     L["TRIGGERS_TITLE"] = "|cffffe066Automatic Triggers:|r"

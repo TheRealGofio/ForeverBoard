@@ -90,7 +90,13 @@ end
 -- Obtiene el nombre visual de un sonido dado su ID
 function FB:GetSoundDisplayName(soundId)
     if not soundId or soundId == "" then
-        return L("DEFAULT_FIRST")
+        local firstId = self:GetFirstValidSound()
+        local firstName = (firstId and self.soundMap and self.soundMap[firstId] and self.soundMap[firstId].name)
+        if firstName then
+            return string.format(L("DEFAULT_FIRST"), firstName)
+        else
+            return L("NONE_SELECTED")
+        end
     end
     local sound = self.soundMap and self.soundMap[soundId]
     return sound and sound.name or soundId
@@ -158,7 +164,8 @@ function FB:OpenSoundDropDown(ownerButton, dbKey)
 
     -- Opciones: 1ª opción "Por defecto", y luego cada sonido disponible
     local options = {}
-    table.insert(options, { id = "", name = L("DEFAULT_FIRST") })
+    local defaultLabel = FB:GetSoundDisplayName("")
+    table.insert(options, { id = "", name = defaultLabel })
     for _, s in ipairs(sounds) do
         table.insert(options, { id = s.id, name = s.name })
     end
@@ -512,13 +519,13 @@ function FB:CreateUI()
 
     function FB:UpdateTriggerButtons()
         if btnSoundLevel and ForeverBoardDB then
-            btnSoundLevel:SetText("▼ " .. FB:GetSoundDisplayName(ForeverBoardDB.triggerLevelUpSound))
+            btnSoundLevel:SetText("> " .. FB:GetSoundDisplayName(ForeverBoardDB.triggerLevelUpSound))
         end
         if btnSoundBoss and ForeverBoardDB then
-            btnSoundBoss:SetText("▼ " .. FB:GetSoundDisplayName(ForeverBoardDB.triggerBossKillSound))
+            btnSoundBoss:SetText("> " .. FB:GetSoundDisplayName(ForeverBoardDB.triggerBossKillSound))
         end
         if btnSoundDead and ForeverBoardDB then
-            btnSoundDead:SetText("▼ " .. FB:GetSoundDisplayName(ForeverBoardDB.triggerDeathSound))
+            btnSoundDead:SetText("> " .. FB:GetSoundDisplayName(ForeverBoardDB.triggerDeathSound))
         end
     end
 
