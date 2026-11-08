@@ -7,6 +7,7 @@ ForeverBoard = ForeverBoard or {}
 local FB = ForeverBoard
 
 FB.ADDON_PREFIX = "ForeverBoard"
+FB.VERSION = "1.0.0"
 FB.SOUND_PATH = "Interface\\AddOns\\ForeverBoard\\sounds\\"
 FB.COOLDOWN = 1.5 -- Segundos de margen entre sonidos para evitar saturación
 FB.lastPlayed = 0
@@ -38,7 +39,9 @@ function FB:Broadcast(soundId)
     end
 
     if chatType then
-        local payload = "PLAY:" .. soundId
+        local sound = self.soundMap[soundId]
+        local soundName = sound and sound.name or soundId
+        local payload = string.format("PLAY:%s:%s", soundId, soundName)
         if C_ChatInfo and C_ChatInfo.SendAddonMessage then
             C_ChatInfo.SendAddonMessage(self.ADDON_PREFIX, payload, chatType)
         elseif SendAddonMessage then
@@ -47,8 +50,31 @@ function FB:Broadcast(soundId)
     end
 end
 
+-- Envío de petición de versión
+function FB:CheckVersions()
+    local chatType = nil
+    if IsInRaid and IsInRaid() then
+        chatType = "RAID"
+    elseif IsInGroup and IsInGroup() then
+        chatType = "PARTY"
+    end
+
+    if not chatType then
+        print("|cff00ccff[ForeverBoard]|r No estás en un grupo ni en banda.")
+        return
+    end
+
+    print("|cff00ccff[ForeverBoard]|r Comprobando versiones de ForeverBoard en el grupo/raid...")
+    local payload = "VER_REQ"
+    if C_ChatInfo and C_ChatInfo.SendAddonMessage then
+        C_ChatInfo.SendAddonMessage(self.ADDON_PREFIX, payload, chatType)
+    elseif SendAddonMessage then
+        SendAddonMessage(self.ADDON_PREFIX, payload, chatType)
+    end
+end
+
 -- Reproduce un sonido localmente
-function FB:PlaySound(soundId, sender)
+function FB:PlaySound(soundId, sender, fallbackName)
     local db = ForeverBoardDB or {}
 
     -- Comprobar si está silenciado
@@ -63,6 +89,10 @@ function FB:PlaySound(soundId, sender)
 
     local sound = self.soundMap[soundId]
     if not sound then
+        -- Aviso amigable si el usuario no tiene este sonido en su pack
+        local displayName = sender or "Alguien"
+        local clipName = fallbackName or soundId
+        print(string.format("|cff00ccff[ForeverBoard]|r |cffffffff%s|r ha lanzado |cffffe066%s|r (|cffff9900No tienes este archivo en tu carpeta sounds|r)", displayName, clipName))
         return false
     end
 
@@ -151,11 +181,32 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             local senderName = sender and strsplit("-", sender)
             local myName = UnitName("player")
 
+            -- Mensaje de petición de versión
+            if message == "VER_REQ" then
+                local reply = string.format("VER_RESP:%s", FB.VERSION or "1.0.0")
+                if C_ChatInfo and C_ChatInfo.SendAddonMessage then
+                    C_ChatInfo.SendAddonMessage(FB.ADDON_PREFIX, reply, channel or "PARTY")
+                elseif SendAddonMessage then
+                    SendAddonMessage(FB.ADDON_PREFIX, reply, channel or "PARTY")
+                end
+                return
+            end
+
+            -- Respuesta de versión recibida
+            if message and message:find("^VER_RESP:") then
+                local version = message:sub(10)
+                local senderDisplay = senderName or sender or "Desconocido"
+                print(string.format("|cff00ccff[ForeverBoard]|r |cffffffff%s|r tiene la versión: |cff00ff00v%s|r", senderDisplay, version))
+                return
+            end
+
             -- Ignorar nuestro propio eco si el cliente lo reenvía
             if senderName and myName and senderName ~= myName then
                 if message and message:find("^PLAY:") then
-                    local soundId = message:sub(6)
-                    FB:PlaySound(soundId, senderName)
+                    -- Formato: PLAY:<soundId>[:<soundName>]
+                    local payload = message:sub(6)
+                    local sId, sName = strsplit(":", payload)
+                    FB:PlaySound(sId, senderName, sName)
                 end
             end
         end
@@ -243,6 +294,8 @@ SlashCmdList["FOREVERBOARD"] = function(msg)
         if FB.UpdateMuteVisuals then
             FB:UpdateMuteVisuals()
         end
+    elseif msg == "version" or msg == "ver" then
+        FB:CheckVersions()
     elseif msg == "list" then
         print("|cff00ccff[ForeverBoard]|r Lista de sonidos disponibles:")
         for _, s in ipairs(ForeverBoard_Sounds or {}) do
@@ -253,6 +306,7 @@ SlashCmdList["FOREVERBOARD"] = function(msg)
         print(" /fb - Abre/cierra la ventana del SoundBoard")
         print(" /fb play <id> - Reproduce un sonido directamente por ID")
         print(" /fb mute - Activa/desactiva el silencio de ForeverBoard")
+        print(" /fb version - Comprueba quién tiene el addon y su versión en grupo/raid")
         print(" /fb list - Lista los IDs de sonido configurados")
     end
 end
