@@ -1,6 +1,7 @@
 --[[
     ForeverBoard - UI
-    Ventana flotante con buscador, control de silencio (Mute), silenciar en combate y botón en minimapa.
+    Ventana flotante con buscador, pestañas (Todos / ⭐ Favoritos),
+    gestión de favoritos con estrella rápida, control de Mute y minimapa.
 ]]
 
 ForeverBoard = ForeverBoard or {}
@@ -8,11 +9,14 @@ local FB = ForeverBoard
 
 local mainFrame = nil
 local searchBox = nil
-local soundButtons = {}
+local soundRows = {}
 local contentFrame = nil
 local scrollFrame = nil
 local muteBtn = nil
 local combatCheck = nil
+local currentTab = "ALL" -- "ALL" o "FAV"
+local tabAllBtn = nil
+local tabFavBtn = nil
 
 -- Función auxiliar para trim compatible con todas las versiones de Lua en WoW
 local function strTrim(s)
@@ -32,7 +36,38 @@ function FB:UpdateMuteVisuals()
     end
 end
 
--- Actualiza la visibilidad y posición de los botones según el filtro de búsqueda
+-- Comprueba si un sonido está en favoritos
+function FB:IsFavorite(soundId)
+    if not ForeverBoardDB or not ForeverBoardDB.favorites then
+        return false
+    end
+    return ForeverBoardDB.favorites[soundId] == true
+end
+
+-- Alterna el estado de favorito de un sonido
+function FB:ToggleFavorite(soundId)
+    if not ForeverBoardDB then return end
+    ForeverBoardDB.favorites = ForeverBoardDB.favorites or {}
+    ForeverBoardDB.favorites[soundId] = not ForeverBoardDB.favorites[soundId]
+    self:RefreshSoundList()
+end
+
+-- Cambia la pestaña activa (Todos / Favoritos)
+function FB:SetTab(tab)
+    currentTab = tab
+    if tabAllBtn and tabFavBtn then
+        if currentTab == "ALL" then
+            tabAllBtn:LockHighlight()
+            tabFavBtn:UnlockHighlight()
+        else
+            tabFavBtn:LockHighlight()
+            tabAllBtn:UnlockHighlight()
+        end
+    end
+    self:RefreshSoundList()
+end
+
+-- Actualiza la visibilidad y posición de los botones según el filtro de búsqueda y favoritos
 function FB:RefreshSoundList()
     if not contentFrame then return end
 
@@ -42,33 +77,53 @@ function FB:RefreshSoundList()
     end
 
     local sounds = ForeverBoard_Sounds or {}
-    local buttonHeight = 28
+    local rowHeight = 28
     local spacing = 4
     local currentY = -4
 
     local parentWidth = (scrollFrame and scrollFrame.GetWidth and scrollFrame:GetWidth()) or 220
-    local btnWidth = math.max(parentWidth - 28, 160)
-    contentFrame:SetWidth(btnWidth)
+    local totalWidth = math.max(parentWidth - 28, 160)
+    contentFrame:SetWidth(totalWidth)
+
+    local starWidth = 24
+    local btnWidth = totalWidth - starWidth - 2
 
     for i, item in ipairs(sounds) do
-        local btn = soundButtons[i]
-        if btn then
-            local matches = true
+        local row = soundRows[i]
+        if row then
+            local isFav = self:IsFavorite(item.id)
+            local matchesTab = (currentTab == "ALL") or (currentTab == "FAV" and isFav)
+
+            local matchesFilter = true
             if filter ~= "" then
                 local nameMatch = item.name and item.name:lower():find(filter, 1, true)
                 local idMatch = item.id and item.id:lower():find(filter, 1, true)
                 local descMatch = item.desc and item.desc:lower():find(filter, 1, true)
-                matches = (nameMatch or idMatch or descMatch) ~= nil
+                matchesFilter = (nameMatch or idMatch or descMatch) ~= nil
             end
 
-            if matches then
-                btn:ClearAllPoints()
-                btn:SetPoint("TOPLEFT", contentFrame, "TOPLEFT", 0, currentY)
-                btn:SetWidth(btnWidth)
-                btn:Show()
-                currentY = currentY - (buttonHeight + spacing)
+            if matchesTab and matchesFilter then
+                -- Actualizar botón de sonido
+                row.btn:ClearAllPoints()
+                row.btn:SetPoint("TOPLEFT", contentFrame, "TOPLEFT", 0, currentY)
+                row.btn:SetWidth(btnWidth)
+                row.btn:Show()
+
+                -- Actualizar botón de estrella
+                row.star:ClearAllPoints()
+                row.star:SetPoint("LEFT", row.btn, "RIGHT", 2, 0)
+                row.star:SetWidth(starWidth)
+                if isFav then
+                    row.star:SetText("|cffffd700★|r")
+                else
+                    row.star:SetText("|cff666666☆|r")
+                end
+                row.star:Show()
+
+                currentY = currentY - (rowHeight + spacing)
             else
-                btn:Hide()
+                row.btn:Hide()
+                row.star:Hide()
             end
         end
     end
@@ -80,17 +135,17 @@ end
 function FB:CreateUI()
     if mainFrame then return mainFrame end
 
-    local defaultWidth = (ForeverBoardDB and ForeverBoardDB.width) or 280
-    local defaultHeight = (ForeverBoardDB and ForeverBoardDB.height) or 400
+    local defaultWidth = (ForeverBoardDB and ForeverBoardDB.width) or 290
+    local defaultHeight = (ForeverBoardDB and ForeverBoardDB.height) or 420
 
     -- Ventana principal
     mainFrame = CreateFrame("Frame", "ForeverBoardFrame", UIParent)
     mainFrame:SetSize(defaultWidth, defaultHeight)
     if mainFrame.SetMinResize then
-        mainFrame:SetMinResize(240, 280)
+        mainFrame:SetMinResize(250, 300)
         mainFrame:SetMaxResize(600, 800)
     elseif mainFrame.SetResizeBounds then
-        mainFrame:SetResizeBounds(240, 280, 600, 800)
+        mainFrame:SetResizeBounds(250, 300, 600, 800)
     end
     mainFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
     mainFrame:SetMovable(true)
@@ -113,7 +168,7 @@ function FB:CreateUI()
         end
     end)
 
-    -- Fondo y bordes (Compatible Classic / Era / BackdropTemplate)
+    -- Fondo y bordes
     if mainFrame.SetBackdrop then
         mainFrame:SetBackdrop({
             bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
@@ -157,10 +212,27 @@ function FB:CreateUI()
     end)
     muteBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
-    -- Caja de búsqueda
+    -- Pestañas "Todos" y "⭐ Favoritos"
+    tabAllBtn = CreateFrame("Button", "ForeverBoardTabAll", mainFrame, "UIPanelButtonTemplate")
+    tabAllBtn:SetSize(75, 20)
+    tabAllBtn:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 14, -32)
+    tabAllBtn:SetText("Todos")
+    tabAllBtn:SetScript("OnClick", function()
+        FB:SetTab("ALL")
+    end)
+
+    tabFavBtn = CreateFrame("Button", "ForeverBoardTabFav", mainFrame, "UIPanelButtonTemplate")
+    tabFavBtn:SetSize(90, 20)
+    tabFavBtn:SetPoint("LEFT", tabAllBtn, "RIGHT", 4, 0)
+    tabFavBtn:SetText("★ Favoritos")
+    tabFavBtn:SetScript("OnClick", function()
+        FB:SetTab("FAV")
+    end)
+
+    -- Caja de búsqueda debajo de las pestañas
     searchBox = CreateFrame("EditBox", "ForeverBoardSearchBox", mainFrame, "InputBoxTemplate")
-    searchBox:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 18, -34)
-    searchBox:SetPoint("TOPRIGHT", mainFrame, "TOPRIGHT", -18, -34)
+    searchBox:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 18, -58)
+    searchBox:SetPoint("TOPRIGHT", mainFrame, "TOPRIGHT", -18, -58)
     searchBox:SetHeight(20)
     searchBox:SetAutoFocus(false)
     searchBox:SetScript("OnTextChanged", function(self)
@@ -193,11 +265,12 @@ function FB:CreateUI()
     contentFrame:SetSize(220, 1)
     scrollFrame:SetScrollChild(contentFrame)
 
-    -- Generar botones para cada sonido
+    -- Generar filas (botón de audio + botón de estrella) para cada sonido
     local sounds = ForeverBoard_Sounds or {}
     local buttonHeight = 28
 
     for i, item in ipairs(sounds) do
+        -- Botón principal para disparar el sonido
         local btn = CreateFrame("Button", "ForeverBoardBtn_" .. item.id, contentFrame, "UIPanelButtonTemplate")
         btn:SetHeight(buttonHeight)
         btn:SetText(item.name)
@@ -208,6 +281,8 @@ function FB:CreateUI()
             if item.desc and item.desc ~= "" then
                 GameTooltip:AddLine(item.desc, 0.8, 0.8, 0.8, true)
             end
+            local favHint = FB:IsFavorite(item.id) and "|cffffd700★ En favoritos|r" or "|cff888888☆ Pulsa la estrella para añadir a favoritos|r"
+            GameTooltip:AddLine(favHint, 0.8, 0.8, 0.8)
             GameTooltip:AddLine("Comando: /fb play " .. item.id, 0.5, 0.5, 0.5)
             GameTooltip:Show()
         end)
@@ -219,7 +294,27 @@ function FB:CreateUI()
             FB:TriggerSound(item.id)
         end)
 
-        soundButtons[i] = btn
+        -- Botón de estrella rápida para Favorito
+        local star = CreateFrame("Button", "ForeverBoardStar_" .. item.id, contentFrame, "UIPanelButtonTemplate")
+        star:SetHeight(buttonHeight)
+        star:SetScript("OnClick", function()
+            FB:ToggleFavorite(item.id)
+        end)
+        star:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            local isFav = FB:IsFavorite(item.id)
+            if isFav then
+                GameTooltip:AddLine("Quitar de Favoritos", 1, 0.3, 0.3)
+            else
+                GameTooltip:AddLine("Añadir a Favoritos", 1, 0.85, 0.2)
+            end
+            GameTooltip:Show()
+        end)
+        star:SetScript("OnLeave", function()
+            GameTooltip:Hide()
+        end)
+
+        soundRows[i] = { btn = btn, star = star, item = item }
     end
 
     -- Pestaña de redimensionamiento (Resize Grip)
@@ -243,7 +338,6 @@ function FB:CreateUI()
         FB:RefreshSoundList()
     end)
 
-    -- Redimensionamiento en tiempo real mientras se arrastra
     mainFrame:SetScript("OnSizeChanged", function(self, w, h)
         if scrollFrame and contentFrame then
             FB:RefreshSoundList()
@@ -257,7 +351,7 @@ function FB:CreateUI()
     end
 
     FB:UpdateMuteVisuals()
-    FB:RefreshSoundList()
+    FB:SetTab("ALL")
 
     mainFrame:Hide()
     return mainFrame
