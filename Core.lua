@@ -302,12 +302,13 @@ function FB:RegisterAutoTriggers()
             if db.triggerLoot then
                 local message = ...
                 if message and message:find("|Hitem:") then
-                    local itemLink = message:match("(|c%x+|Hitem:%d+:[%d:]+|h%[[^%]]+%]h|r)") or message:match("(|Hitem:%d+:[%d:]+|h%[[^%]]+%]h)")
+                    -- Captura el enlace del objeto tanto si incluye el color hex envolvente como si no
+                    local itemLink = message:match("(|c%x+|Hitem:[^|]+|h%[[^%]]+%]h|r)") or message:match("(|Hitem:[^|]+|h%[[^%]]+%]h)")
                     if itemLink then
                         local itemName, _, itemRarity = GetItemInfo(itemLink)
-                        -- Si aún no está en caché, intentar extraer la rareza por el color hex del enlace
+                        -- Si aún no está en caché de WoW, extraer la rareza del color hex del enlace
                         if not itemRarity then
-                            local color = message:match("|c(%x%x%x%x%x%x%x%x)")
+                            local color = itemLink:match("|c(%x%x%x%x%x%x%x%x)") or message:match("|c(%x%x%x%x%x%x%x%x)")
                             if color then
                                 color = color:lower()
                                 if color == "ffa335ee" then -- Épico
