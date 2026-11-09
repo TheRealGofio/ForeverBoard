@@ -582,6 +582,31 @@ function FB:CreateUI()
         "death"
     )
 
+    local cardLoot, chkLoot, btnSoundLoot = CreateTriggerCard(
+        triggerContent,
+        L("TRIG_LOOT_TITLE"),
+        "Interface\\Icons\\INV_Box_01",
+        cardDead,
+        "triggerLoot",
+        "triggerLootSound",
+        "loot"
+    )
+
+    -- Checkbox extra para incluir verdes dentro de la tarjeta de botín
+    local chkGreens = CreateFrame("CheckButton", "ForeverBoardChkGreens", cardLoot, "UICheckButtonTemplate")
+    chkGreens:SetSize(16, 16)
+    chkGreens:SetPoint("TOPLEFT", chkLoot, "BOTTOMLEFT", 0, -2)
+    chkGreens:SetChecked(ForeverBoardDB and ForeverBoardDB.triggerLootIncludeGreens)
+    chkGreens:SetScript("OnClick", function(self)
+        ForeverBoardDB.triggerLootIncludeGreens = self:GetChecked()
+    end)
+    local lblGreens = cardLoot:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    lblGreens:SetPoint("LEFT", chkGreens, "RIGHT", 2, 0)
+    lblGreens:SetText("|cff1eff00" .. L("TRIG_LOOT_GREENS") .. "|r")
+
+    -- Ajustar la altura de la tarjeta de botín para albergar la opción de verdes
+    cardLoot:SetHeight(58)
+
     function FB:UpdateTriggerButtons()
         if btnSoundLevel and ForeverBoardDB then
             btnSoundLevel:SetText("> " .. FB:GetSoundDisplayName(ForeverBoardDB.triggerLevelUpSound, "levelUp"))
@@ -592,11 +617,14 @@ function FB:CreateUI()
         if btnSoundDead and ForeverBoardDB then
             btnSoundDead:SetText("> " .. FB:GetSoundDisplayName(ForeverBoardDB.triggerDeathSound, "death"))
         end
+        if btnSoundLoot and ForeverBoardDB then
+            btnSoundLoot:SetText("> " .. FB:GetSoundDisplayName(ForeverBoardDB.triggerLootSound, "loot"))
+        end
     end
 
     -- Nota explicativa
     local note = triggerContent:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    note:SetPoint("TOPLEFT", cardDead, "BOTTOMLEFT", 4, -12)
+    note:SetPoint("TOPLEFT", cardLoot, "BOTTOMLEFT", 4, -12)
     note:SetPoint("RIGHT", triggerContent, "RIGHT", -6, 0)
     note:SetJustifyH("LEFT")
     note:SetText(L("TRIGGERS_NOTE"))

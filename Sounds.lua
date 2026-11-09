@@ -10,6 +10,7 @@ ForeverBoard_DefaultTriggers = {
     levelUp  = "ff_fanfare", -- ID del sonido por defecto para Subida de nivel (Ding!)
     bossKill = "faaah", -- ID del sonido por defecto para Victoria en Boss
     death    = "roblox_death", -- ID del sonido por defecto para Muerte/Wipe
+    loot     = "que_guapo", -- ID del sonido por defecto para Botín Raro / Épico+
 }
 
 ForeverBoard_Sounds = {
