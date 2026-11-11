@@ -46,7 +46,7 @@ if isSpanish then
     L["TRIG_LEVEL_TITLE"] = "Subida de nivel (Ding!)"
     L["TRIG_BOSS_TITLE"] = "Victoria en Boss (Raid / Mazmorra)"
     L["TRIG_DEAD_TITLE"] = "Muerte del personaje (Wipe)"
-    L["TRIG_LOOT_TITLE"] = "Botín Raro / Épico o +"
+    L["TRIG_LOOT_TITLE"] = "Botín / Dados (Azul / Épico o +)"
     L["TRIG_LOOT_GREENS"] = "Incluir también verdes"
     L["TRIGGERS_NOTE"] = "Selecciona en el desplegable qué sonido sonará para ti y tu grupo en cada evento."
     
@@ -54,7 +54,7 @@ if isSpanish then
     L["TRIG_ALERT_LEVEL"] = "¡Subida al nivel %s!"
     L["TRIG_ALERT_BOSS"] = "¡Jefe de mazmorra o banda derrotado!"
     L["TRIG_ALERT_DEAD"] = "¡Has muerto!"
-    L["TRIG_ALERT_LOOT"] = "¡Botín conseguido: %s!"
+    L["TRIG_ALERT_LOOT"] = "¡Botín disponible: %s!"
 
     -- Minimap Tooltip
     L["MINIMAP_CLICK_HINT"] = "Clic izquierdo: Abrir / Cerrar SoundBoard"
@@ -103,7 +103,7 @@ else
     L["TRIG_LEVEL_TITLE"] = "Level Up (Ding!)"
     L["TRIG_BOSS_TITLE"] = "Boss Kill (Raid / Dungeon)"
     L["TRIG_DEAD_TITLE"] = "Player Death (Wipe)"
-    L["TRIG_LOOT_TITLE"] = "Rare / Epic+ Loot"
+    L["TRIG_LOOT_TITLE"] = "Loot / Roll (Rare / Epic+)"
     L["TRIG_LOOT_GREENS"] = "Include uncommon (greens)"
     L["TRIGGERS_NOTE"] = "Use the dropdowns to pick which sound plays for you and your group on each event."
     
@@ -111,7 +111,7 @@ else
     L["TRIG_ALERT_LEVEL"] = "Level up to %s!"
     L["TRIG_ALERT_BOSS"] = "Dungeon or Raid Boss defeated!"
     L["TRIG_ALERT_DEAD"] = "You died!"
-    L["TRIG_ALERT_LOOT"] = "Loot obtained: %s!"
+    L["TRIG_ALERT_LOOT"] = "Loot available: %s!"
 
     -- Minimap Tooltip
     L["MINIMAP_CLICK_HINT"] = "Left click: Open / Close SoundBoard"

@@ -258,12 +258,50 @@ function FB:RegisterAutoTriggers()
     triggerFrame:RegisterEvent("PLAYER_DEAD")
     triggerFrame:RegisterEvent("BOSS_KILL")
     triggerFrame:RegisterEvent("ENCOUNTER_END")
+    triggerFrame:RegisterEvent("START_LOOT_ROLL")
     triggerFrame:RegisterEvent("CHAT_MSG_LOOT")
     triggerFrame:RegisterEvent("CHAT_MSG_SYSTEM")
 
     local lastDeadTime = 0
     local lastBossKillTime = 0
     local lastLootTime = 0
+
+    local function CheckAndFireLoot(itemLink, rawMsg)
+        if not itemLink then return end
+        local itemName, _, itemRarity = GetItemInfo(itemLink)
+
+        -- Si no hay itemRarity por GetItemInfo (no en cache), extraer por color hex
+        if not itemRarity then
+            local hexColor = (itemLink and itemLink:match("|c(%x%x%x%x%x%x%x%x)"))
+                          or (rawMsg and rawMsg:match("|c(%x%x%x%x%x%x%x%x)"))
+            if hexColor then
+                hexColor = hexColor:lower()
+                if hexColor == "ffa335ee" then -- Épico
+                    itemRarity = 4
+                elseif hexColor == "ff0070dd" then -- Raro (Azul)
+                    itemRarity = 3
+                elseif hexColor == "ff1eff00" then -- Poco común (Verde)
+                    itemRarity = 2
+                elseif hexColor == "ffff8000" then -- Legendario
+                    itemRarity = 5
+                elseif hexColor == "ffe6cc80" then -- Reliquia
+                    itemRarity = 7
+                end
+            end
+        end
+
+        local db = ForeverBoardDB or {}
+        local minRarity = db.triggerLootIncludeGreens and 2 or 3
+        if itemRarity and itemRarity >= minRarity then
+            local now = GetTime()
+            if now - lastLootTime > 4 then
+                lastLootTime = now
+                local nameStr = itemName or itemLink
+                local msg = string.format(FB.L["TRIG_ALERT_LOOT"] or "¡Botín disponible: %s!", nameStr)
+                FB:FireAutoTrigger(db.triggerLootSound, msg, "loot")
+            end
+        end
+    end
 
     triggerFrame:SetScript("OnEvent", function(self, event, ...)
         local db = ForeverBoardDB or {}
@@ -299,6 +337,18 @@ function FB:RegisterAutoTriggers()
                 end
             end
 
+        elseif event == "START_LOOT_ROLL" then
+            -- Salta cuando la ventana de dados (Necesidad / Codicia) aparece en pantalla
+            if db.triggerLoot then
+                local rollID = ...
+                if rollID and GetLootRollItemLink then
+                    local rollLink = GetLootRollItemLink(rollID)
+                    if rollLink then
+                        CheckAndFireLoot(rollLink, rollLink)
+                    end
+                end
+            end
+
         elseif event == "CHAT_MSG_LOOT" or event == "CHAT_MSG_SYSTEM" then
             if db.triggerLoot then
                 local message = ...
@@ -309,37 +359,7 @@ function FB:RegisterAutoTriggers()
                                   or message:match("(|Hitem:[^|]+|h.-|h)")
 
                     if itemLink then
-                        local itemName, _, itemRarity = GetItemInfo(itemLink)
-
-                        -- Si no hay itemRarity por GetItemInfo, extraer por color hex
-                        if not itemRarity then
-                            local hexColor = message:match("|c(%x%x%x%x%x%x%x%x)")
-                            if hexColor then
-                                hexColor = hexColor:lower()
-                                if hexColor == "ffa335ee" then -- Épico
-                                    itemRarity = 4
-                                elseif hexColor == "ff0070dd" then -- Raro (Azul)
-                                    itemRarity = 3
-                                elseif hexColor == "ff1eff00" then -- Poco común (Verde)
-                                    itemRarity = 2
-                                elseif hexColor == "ffff8000" then -- Legendario
-                                    itemRarity = 5
-                                elseif hexColor == "ffe6cc80" then -- Reliquia
-                                    itemRarity = 7
-                                end
-                            end
-                        end
-
-                        local minRarity = db.triggerLootIncludeGreens and 2 or 3
-                        if itemRarity and itemRarity >= minRarity then
-                            local now = GetTime()
-                            if now - lastLootTime > 5 then
-                                lastLootTime = now
-                                local nameStr = itemName or itemLink
-                                local msg = string.format(FB.L["TRIG_ALERT_LOOT"] or "¡Botín conseguido: %s!", nameStr)
-                                FB:FireAutoTrigger(db.triggerLootSound, msg, "loot")
-                            end
-                        end
+                        CheckAndFireLoot(itemLink, message)
                     end
                 end
             end
