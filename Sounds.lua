@@ -7,10 +7,10 @@
 --]]
 
 ForeverBoard_DefaultTriggers = {
-    levelUp  = "ff_fanfare", -- ID del sonido por defecto para Subida de nivel (Ding!)
-    bossKill = "faaah", -- ID del sonido por defecto para Victoria en Boss
-    death    = "roblox_death", -- ID del sonido por defecto para Muerte/Wipe
-    loot     = "que_guapo", -- ID del sonido por defecto para Botín Raro / Épico+
+    levelUp  = "butano", -- ID del sonido por defecto para Subida de nivel (Ding!)
+    bossKill = "bro_que_buena_informacion", -- ID del sonido por defecto para Victoria en Boss
+    death    = "bro_que_buena_informacion", -- ID del sonido por defecto para Muerte/Wipe
+    loot     = "que_guapo", -- ID del sonido por defecto para Botin Raro / Epico+
 }
 
 ForeverBoard_Sounds = {
@@ -55,6 +55,12 @@ ForeverBoard_Sounds = {
         name = "Muerte Mario",
         file = "Muerte Mario.mp3",
         desc = "Audio: Muerte Mario.mp3",
+    },
+    {
+        id = "oh_my_god",
+        name = "Oh My God",
+        file = "Oh my god.mp3",
+        desc = "Audio: Oh my god.mp3",
     },
     {
         id = "que_guapo",

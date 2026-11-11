@@ -259,6 +259,7 @@ function FB:RegisterAutoTriggers()
     triggerFrame:RegisterEvent("BOSS_KILL")
     triggerFrame:RegisterEvent("ENCOUNTER_END")
     triggerFrame:RegisterEvent("CHAT_MSG_LOOT")
+    triggerFrame:RegisterEvent("CHAT_MSG_SYSTEM")
 
     local lastDeadTime = 0
     local lastBossKillTime = 0
@@ -298,27 +299,33 @@ function FB:RegisterAutoTriggers()
                 end
             end
 
-        elseif event == "CHAT_MSG_LOOT" then
+        elseif event == "CHAT_MSG_LOOT" or event == "CHAT_MSG_SYSTEM" then
             if db.triggerLoot then
                 local message = ...
-                if message and message:find("|Hitem:") then
-                    -- Captura el enlace del objeto tanto si incluye el color hex envolvente como si no
-                    local itemLink = message:match("(|c%x+|Hitem:[^|]+|h%[[^%]]+%]h|r)") or message:match("(|Hitem:[^|]+|h%[[^%]]+%]h)")
+                if message and type(message) == "string" and message:find("|Hitem:") then
+                    local itemLink = message:match("(|c%x+|Hitem:[^|]+|h%[[^%]]+%]h|r)")
+                                  or message:match("(|c%x+|Hitem:[^|]+|h.-|h|r)")
+                                  or message:match("(|Hitem:[^|]+|h%[[^%]]+%]h)")
+                                  or message:match("(|Hitem:[^|]+|h.-|h)")
+
                     if itemLink then
                         local itemName, _, itemRarity = GetItemInfo(itemLink)
-                        -- Si aún no está en caché de WoW, extraer la rareza del color hex del enlace
+
+                        -- Si no hay itemRarity por GetItemInfo, extraer por color hex
                         if not itemRarity then
-                            local color = itemLink:match("|c(%x%x%x%x%x%x%x%x)") or message:match("|c(%x%x%x%x%x%x%x%x)")
-                            if color then
-                                color = color:lower()
-                                if color == "ffa335ee" then -- Épico
+                            local hexColor = message:match("|c(%x%x%x%x%x%x%x%x)")
+                            if hexColor then
+                                hexColor = hexColor:lower()
+                                if hexColor == "ffa335ee" then -- Épico
                                     itemRarity = 4
-                                elseif color == "ff0070dd" then -- Raro (Azul)
+                                elseif hexColor == "ff0070dd" then -- Raro (Azul)
                                     itemRarity = 3
-                                elseif color == "ff1eff00" then -- Poco común (Verde)
+                                elseif hexColor == "ff1eff00" then -- Poco común (Verde)
                                     itemRarity = 2
-                                elseif color == "ffff8000" then -- Legendario
+                                elseif hexColor == "ffff8000" then -- Legendario
                                     itemRarity = 5
+                                elseif hexColor == "ffe6cc80" then -- Reliquia
+                                    itemRarity = 7
                                 end
                             end
                         end
@@ -326,7 +333,7 @@ function FB:RegisterAutoTriggers()
                         local minRarity = db.triggerLootIncludeGreens and 2 or 3
                         if itemRarity and itemRarity >= minRarity then
                             local now = GetTime()
-                            if now - lastLootTime > 6 then
+                            if now - lastLootTime > 5 then
                                 lastLootTime = now
                                 local nameStr = itemName or itemLink
                                 local msg = string.format(FB.L["TRIG_ALERT_LOOT"] or "¡Botín conseguido: %s!", nameStr)
@@ -362,6 +369,16 @@ SlashCmdList["FOREVERBOARD"] = function(msg)
         for _, s in ipairs(ForeverBoard_Sounds or {}) do
             print(string.format(" - |cffffffff%s|r (|cffffe066%s|r): %s", s.id, s.name, s.desc or ""))
         end
+    elseif msg == "testloot" then
+        local testBlueLink = "|cff0070dd|Hitem:19019:0:0:0|h[Objeto de Prueba Azul]|h|r"
+        local db = ForeverBoardDB or {}
+        local sound = db.triggerLootSound
+        if not sound or sound == "" then
+            sound = FB:GetDefaultTriggerSound("loot")
+        end
+        print(string.format("|cff00ccff[ForeverBoard]|r Probando trigger de botin con %s (Sonido: |cffffcc00%s|r)", testBlueLink, tostring(sound)))
+        local alert = string.format(FB.L["TRIG_ALERT_LOOT"] or "¡Botín conseguido: %s!", testBlueLink)
+        FB:FireAutoTrigger(sound, alert, "loot")
     else
         print("|cff00ccff[ForeverBoard]|r Uso:")
         print(" /fb - Abre/cierra la ventana del SoundBoard")
@@ -369,5 +386,6 @@ SlashCmdList["FOREVERBOARD"] = function(msg)
         print(" /fb mute - Activa/desactiva el silencio de ForeverBoard")
         print(" /fb version - Comprueba quién tiene el addon y su versión en grupo/raid")
         print(" /fb list - Lista los IDs de sonido configurados")
+        print(" /fb testloot - Simula un drop de objeto azul para verificar que el sonido funciona")
     end
 end
