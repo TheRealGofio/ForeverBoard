@@ -43,10 +43,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
     "$bossDef = if ($audioFiles.Count -gt 0) { '\"' + [System.IO.Path]::GetFileNameWithoutExtension($audioFiles[0].Name).ToLower().Replace(' ', '_') + '\"' } else { '\"\"' };" ^
     "$deadDef = $bossDef;" ^
     "$lines.Add('ForeverBoard_DefaultTriggers = {');" ^
-    "$lines.Add('    levelUp  = ' + $levelDef + ', -- ID del sonido por defecto para Subida de nivel (Ding!)');" ^
-    "$lines.Add('    bossKill = ' + $bossDef + ', -- ID del sonido por defecto para Victoria en Boss');" ^
-    "$lines.Add('    death    = ' + $deadDef + ', -- ID del sonido por defecto para Muerte/Wipe');" ^
-    "$lines.Add('    loot     = \"que_guapo\", -- ID del sonido por defecto para Botin Raro / Epico+');" ^
+    "$lines.Add('    levelUp  = \"ff_fanfare\", -- ID del sonido por defecto para Subida de nivel (Ding!)');" ^
+    "$lines.Add('    bossKill = \"faaah\", -- ID del sonido por defecto para Victoria en Boss');" ^
+    "$lines.Add('    death    = \"gemido_anime\", -- ID del sonido por defecto para Muerte/Wipe');" ^
+    "$lines.Add('    loot     = \"\", -- ID del sonido por defecto para Botin (vacio = sin sonido por defecto)');" ^
     "$lines.Add('}');" ^
     "$lines.Add('');" ^
     "$lines.Add('ForeverBoard_Sounds = {');" ^

@@ -19,7 +19,6 @@ local scrollFrame = nil
 local triggerContent = nil
 local muteBtn = nil
 local channelBtn = nil
-local combatCheck = nil
 local countLabel = nil
 local currentTab = "ALL" -- "ALL", "FAV", o "TRIGGERS"
 local tabAllBtn = nil
@@ -28,6 +27,79 @@ local tabTrigBtn = nil
 
 -- Canales de audio soportados por WoW
 local SOUND_CHANNELS = { "Master", "SFX", "Ambience" }
+
+-- ==========================================================
+-- Función para estilizar botones planos modernos
+-- ==========================================================
+local function SkinAsModernButton(btn)
+    if not btn then return end
+
+    -- Ocultar texturas nativas del UIPanelButtonTemplate de Blizzard
+    local nt = btn:GetNormalTexture()
+    if nt then nt:SetAlpha(0) end
+    local pt = btn:GetPushedTexture()
+    if pt then pt:SetAlpha(0) end
+    local dt = btn:GetDisabledTexture()
+    if dt then dt:SetAlpha(0) end
+    local ht = btn:GetHighlightTexture()
+    if ht then ht:SetAlpha(0) end
+
+    -- Fondo plano grafito satinado
+    local bg = btn:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints(true)
+    bg:SetColorTexture(0.14, 0.15, 0.20, 0.90)
+    btn.customBg = bg
+
+    -- Borde fino sutil de 1px
+    local bTop = btn:CreateTexture(nil, "BORDER")
+    bTop:SetHeight(1)
+    bTop:SetPoint("TOPLEFT", btn, "TOPLEFT", 0, 0)
+    bTop:SetPoint("TOPRIGHT", btn, "TOPRIGHT", 0, 0)
+    bTop:SetColorTexture(0.28, 0.30, 0.40, 0.7)
+    btn.bTop = bTop
+
+    local bBottom = btn:CreateTexture(nil, "BORDER")
+    bBottom:SetHeight(1)
+    bBottom:SetPoint("BOTTOMLEFT", btn, "BOTTOMLEFT", 0, 0)
+    bBottom:SetPoint("BOTTOMRIGHT", btn, "BOTTOMRIGHT", 0, 0)
+    bBottom:SetColorTexture(0.08, 0.08, 0.12, 0.9)
+    btn.bBottom = bBottom
+
+    local bLeft = btn:CreateTexture(nil, "BORDER")
+    bLeft:SetWidth(1)
+    bLeft:SetPoint("TOPLEFT", btn, "TOPLEFT", 0, 0)
+    bLeft:SetPoint("BOTTOMLEFT", btn, "BOTTOMLEFT", 0, 0)
+    bLeft:SetColorTexture(0.28, 0.30, 0.40, 0.7)
+    btn.bLeft = bLeft
+
+    local bRight = btn:CreateTexture(nil, "BORDER")
+    bRight:SetWidth(1)
+    bRight:SetPoint("TOPRIGHT", btn, "TOPRIGHT", 0, 0)
+    bRight:SetPoint("BOTTOMRIGHT", btn, "BOTTOMRIGHT", 0, 0)
+    bRight:SetColorTexture(0.08, 0.08, 0.12, 0.9)
+    btn.bRight = bRight
+
+    function btn:SetBorderColor(r, g, b, a)
+        self.bTop:SetColorTexture(r, g, b, a or 0.8)
+        self.bBottom:SetColorTexture(r, g, b, a or 0.8)
+        self.bLeft:SetColorTexture(r, g, b, a or 0.8)
+        self.bRight:SetColorTexture(r, g, b, a or 0.8)
+    end
+
+    btn:HookScript("OnEnter", function(self)
+        if not self.isActiveTab then
+            self.customBg:SetColorTexture(0.22, 0.25, 0.34, 0.95)
+            self:SetBorderColor(0.0, 0.8, 1.0, 0.6)
+        end
+    end)
+
+    btn:HookScript("OnLeave", function(self)
+        if not self.isActiveTab then
+            self.customBg:SetColorTexture(0.14, 0.15, 0.20, 0.90)
+            self:SetBorderColor(0.28, 0.30, 0.40, 0.7)
+        end
+    end)
+end
 
 local function L(key)
     return (FB.L and FB.L[key]) or key
@@ -39,27 +111,44 @@ local function strTrim(s)
     return s:match("^%s*(.-)%s*$") or ""
 end
 
--- Asigna un icono temático de WoW según el nombre o id del clip
-local function GetSoundIcon(sound)
-    local s = (sound.id .. " " .. sound.name):lower()
-    if s:find("mario") or s:find("muerte") or s:find("death") or s:find("roblox") then
-        return "Interface\\Icons\\Ability_Creature_Cursed_02"
-    elseif s:find("fanfare") or s:find("victory") or s:find("ff") then
-        return "Interface\\Icons\\Spell_Holy_PrayerOfFortitude"
-    elseif s:find("butano") or s:find("fire") or s:find("sol") then
-        return "Interface\\Icons\\Spell_Fire_FlameBlades"
-    elseif s:find("meow") or s:find("cat") or s:find("gato") then
-        return "Interface\\Icons\\Ability_Druid_CatForm"
-    elseif s:find("anime") or s:find("gemido") or s:find("rizz") then
-        return "Interface\\Icons\\Spell_Shadow_Charm"
-    elseif s:find("violin") or s:find("sad") or s:find("wipe") then
-        return "Interface\\Icons\\Spell_Shadow_Haunting"
-    elseif s:find("guapo") or s:find("faaah") or s:find("cheer") then
-        return "Interface\\Icons\\Spell_Holy_AuraMastery"
-    elseif s:find("horn") or s:find("bocina") then
-        return "Interface\\Icons\\INV_Misc_Horn_01"
+-- Paleta de colores armónica Discord para tarjetas de sonido
+local SOUND_PALETTES = {
+    { r = 0.35, g = 0.55, b = 0.95 }, -- Azul eléctrico
+    { r = 0.18, g = 0.78, b = 0.55 }, -- Esmeralda
+    { r = 0.95, g = 0.45, b = 0.35 }, -- Coral / Frambuesa
+    { r = 0.95, g = 0.75, b = 0.20 }, -- Ámbar dorado
+    { r = 0.65, g = 0.45, b = 0.92 }, -- Púrpura / Violeta
+    { r = 0.15, g = 0.75, b = 0.88 }, -- Cian brillante
+    { r = 0.95, g = 0.35, b = 0.60 }, -- Rosa magenta
+    { r = 0.45, g = 0.85, b = 0.30 }, -- Lima
+}
+
+-- Devuelve una paleta de color fija y determinista para un clip
+local function GetSoundColor(soundId)
+    local hash = 0
+    local str = tostring(soundId or "sound")
+    for i = 1, #str do
+        hash = (hash * 31 + string.byte(str, i)) % 1000000
+    end
+    local idx = (hash % #SOUND_PALETTES) + 1
+    return SOUND_PALETTES[idx]
+end
+
+-- Devuelve 1 o 2 iniciales limpias en mayúsculas a partir del nombre
+local function GetSoundInitials(name)
+    if not name or name == "" then return "SB" end
+    local words = {}
+    for w in name:gmatch("%S+") do
+        table.insert(words, w)
+    end
+    if #words >= 2 then
+        local first = words[1]:sub(1, 1):upper()
+        local second = words[2]:sub(1, 1):upper()
+        return first .. second
+    elseif #words == 1 then
+        return words[1]:sub(1, math.min(2, #words[1])):upper()
     else
-        return "Interface\\Icons\\INV_Misc_Bell_01"
+        return "SB"
     end
 end
 
@@ -68,9 +157,21 @@ function FB:UpdateMuteVisuals()
     local isMuted = ForeverBoardDB and ForeverBoardDB.isMuted
     if muteBtn then
         if isMuted then
-            muteBtn:SetText(L("MUTE_BTN_MUTED"))
+            muteBtn:SetText("|cffff5555Muted|r")
+            if muteBtn.customBg then
+                muteBtn.customBg:SetColorTexture(0.35, 0.10, 0.12, 0.90)
+            end
+            if muteBtn.SetBorderColor then
+                muteBtn:SetBorderColor(0.85, 0.2, 0.2, 0.8)
+            end
         else
-            muteBtn:SetText(L("MUTE_BTN_ON"))
+            muteBtn:SetText("|cff55ff55Audio ON|r")
+            if muteBtn.customBg then
+                muteBtn.customBg:SetColorTexture(0.10, 0.25, 0.14, 0.90)
+            end
+            if muteBtn.SetBorderColor then
+                muteBtn:SetBorderColor(0.2, 0.8, 0.4, 0.8)
+            end
         end
     end
 end
@@ -259,17 +360,32 @@ function FB:SetTab(tab)
     if dropDownMenu then dropDownMenu:Hide() end
 
     if tabAllBtn and tabFavBtn and tabTrigBtn then
-        tabAllBtn:UnlockHighlight()
-        tabFavBtn:UnlockHighlight()
-        tabTrigBtn:UnlockHighlight()
-
-        if currentTab == "ALL" then
-            tabAllBtn:LockHighlight()
-        elseif currentTab == "FAV" then
-            tabFavBtn:LockHighlight()
-        elseif currentTab == "TRIGGERS" then
-            tabTrigBtn:LockHighlight()
+        local function ApplyPillStyle(btn, isActive)
+            btn.isActiveTab = isActive
+            if isActive then
+                if btn.customBg then
+                    btn.customBg:SetColorTexture(0.00, 0.45, 0.65, 0.95)
+                end
+                if btn.SetBorderColor then
+                    btn:SetBorderColor(0.00, 0.85, 1.00, 1.0)
+                end
+                local fs = btn:GetFontString()
+                if fs then fs:SetTextColor(1, 1, 1, 1) end
+            else
+                if btn.customBg then
+                    btn.customBg:SetColorTexture(0.12, 0.13, 0.18, 0.85)
+                end
+                if btn.SetBorderColor then
+                    btn:SetBorderColor(0.25, 0.28, 0.38, 0.6)
+                end
+                local fs = btn:GetFontString()
+                if fs then fs:SetTextColor(0.70, 0.70, 0.75, 1) end
+            end
         end
+
+        ApplyPillStyle(tabAllBtn, currentTab == "ALL")
+        ApplyPillStyle(tabFavBtn, currentTab == "FAV")
+        ApplyPillStyle(tabTrigBtn, currentTab == "TRIGGERS")
     end
 
     if currentTab == "TRIGGERS" then
@@ -403,11 +519,16 @@ function FB:CreateUI()
     end)
     mainFrame:SetScript("OnDragStop", function(self)
         self:StopMovingOrSizing()
-        local point, _, _, x, y = self:GetPoint()
-        if ForeverBoardDB then
-            ForeverBoardDB.point = point
-            ForeverBoardDB.posX = x
-            ForeverBoardDB.posY = y
+        local left = self:GetLeft()
+        local top = self:GetTop()
+        if left and top then
+            self:ClearAllPoints()
+            self:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
+            if ForeverBoardDB then
+                ForeverBoardDB.point = "TOPLEFT"
+                ForeverBoardDB.posX = left
+                ForeverBoardDB.posY = top
+            end
         end
     end)
 
@@ -442,8 +563,9 @@ function FB:CreateUI()
 
     -- Botón de Mute rápido en la cabecera (derecha, junto a cerrar)
     muteBtn = CreateFrame("Button", "ForeverBoardMuteBtn", mainFrame, "UIPanelButtonTemplate")
-    muteBtn:SetSize(76, 20)
+    muteBtn:SetSize(82, 20)
     muteBtn:SetPoint("TOPRIGHT", closeBtn, "TOPLEFT", -2, -4)
+    SkinAsModernButton(muteBtn)
     muteBtn:SetScript("OnClick", function()
         ForeverBoardDB.isMuted = not ForeverBoardDB.isMuted
         FB:UpdateMuteVisuals()
@@ -460,25 +582,28 @@ function FB:CreateUI()
 
     -- Pestañas como píldoras de navegación
     tabAllBtn = CreateFrame("Button", "ForeverBoardTabAll", mainFrame, "UIPanelButtonTemplate")
-    tabAllBtn:SetSize(80, 20)
+    tabAllBtn:SetSize(84, 22)
     tabAllBtn:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 16, -38)
     tabAllBtn:SetText(L("TAB_ALL"))
+    SkinAsModernButton(tabAllBtn)
     tabAllBtn:SetScript("OnClick", function()
         FB:SetTab("ALL")
     end)
 
     tabFavBtn = CreateFrame("Button", "ForeverBoardTabFav", mainFrame, "UIPanelButtonTemplate")
-    tabFavBtn:SetSize(86, 20)
+    tabFavBtn:SetSize(90, 22)
     tabFavBtn:SetPoint("LEFT", tabAllBtn, "RIGHT", 4, 0)
     tabFavBtn:SetText(L("TAB_FAV"))
+    SkinAsModernButton(tabFavBtn)
     tabFavBtn:SetScript("OnClick", function()
         FB:SetTab("FAV")
     end)
 
     tabTrigBtn = CreateFrame("Button", "ForeverBoardTabTrig", mainFrame, "UIPanelButtonTemplate")
-    tabTrigBtn:SetSize(72, 20)
+    tabTrigBtn:SetSize(76, 22)
     tabTrigBtn:SetPoint("LEFT", tabFavBtn, "RIGHT", 4, 0)
     tabTrigBtn:SetText(L("TAB_TRIGGERS"))
+    SkinAsModernButton(tabTrigBtn)
     tabTrigBtn:SetScript("OnClick", function()
         FB:SetTab("TRIGGERS")
     end)
@@ -536,18 +661,22 @@ function FB:CreateUI()
             ForeverBoardDB[dbCheckKey] = self:GetChecked()
         end)
 
-        -- Título del evento
-        local lbl = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        lbl:SetPoint("LEFT", chk, "RIGHT", 4, 0)
-        lbl:SetText(titleText)
-
         -- Botón desplegable de sonido
         local btn = CreateFrame("Button", nil, card, "UIPanelButtonTemplate")
-        btn:SetSize(140, 20)
+        btn:SetSize(145, 22)
         btn:SetPoint("RIGHT", card, "RIGHT", -8, 0)
+        SkinAsModernButton(btn)
         btn:SetScript("OnClick", function(self)
             FB:OpenSoundDropDown(self, dbSoundKey, triggerType)
         end)
+
+        -- Título del evento (limitado a la derecha por el botón desplegable)
+        local lbl = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        lbl:SetPoint("LEFT", chk, "RIGHT", 4, 0)
+        lbl:SetPoint("RIGHT", btn, "LEFT", -6, 0)
+        lbl:SetJustifyH("LEFT")
+        lbl:SetWordWrap(false)
+        lbl:SetText(titleText)
 
         return card, chk, btn
     end
@@ -609,16 +738,16 @@ function FB:CreateUI()
 
     function FB:UpdateTriggerButtons()
         if btnSoundLevel and ForeverBoardDB then
-            btnSoundLevel:SetText("> " .. FB:GetSoundDisplayName(ForeverBoardDB.triggerLevelUpSound, "levelUp"))
+            btnSoundLevel:SetText(FB:GetSoundDisplayName(ForeverBoardDB.triggerLevelUpSound, "levelUp") .. " >")
         end
         if btnSoundBoss and ForeverBoardDB then
-            btnSoundBoss:SetText("> " .. FB:GetSoundDisplayName(ForeverBoardDB.triggerBossKillSound, "bossKill"))
+            btnSoundBoss:SetText(FB:GetSoundDisplayName(ForeverBoardDB.triggerBossKillSound, "bossKill") .. " >")
         end
         if btnSoundDead and ForeverBoardDB then
-            btnSoundDead:SetText("> " .. FB:GetSoundDisplayName(ForeverBoardDB.triggerDeathSound, "death"))
+            btnSoundDead:SetText(FB:GetSoundDisplayName(ForeverBoardDB.triggerDeathSound, "death") .. " >")
         end
         if btnSoundLoot and ForeverBoardDB then
-            btnSoundLoot:SetText("> " .. FB:GetSoundDisplayName(ForeverBoardDB.triggerLootSound, "loot"))
+            btnSoundLoot:SetText(FB:GetSoundDisplayName(ForeverBoardDB.triggerLootSound, "loot") .. " >")
         end
     end
 
@@ -666,13 +795,29 @@ function FB:CreateUI()
         hl:SetAllPoints(true)
         hl:SetColorTexture(0.25, 0.45, 0.85, 0.3)
 
-        -- Icono del sonido a la izquierda
-        local icon = tile:CreateTexture(nil, "ARTWORK")
-        icon:SetSize(24, 24)
-        icon:SetPoint("LEFT", tile, "LEFT", 6, 0)
-        icon:SetTexture(GetSoundIcon(item))
-        icon:SetTexCoord(0.08, 0.92, 0.08, 0.92) -- Recorte suave de bordes de icono WoW
-        tile.icon = icon
+        -- Banda / Insignia decorativa izquierda estilo Discord Soundboard
+        local color = GetSoundColor(item.id)
+        local accentBar = tile:CreateTexture(nil, "BORDER")
+        accentBar:SetWidth(4)
+        accentBar:SetPoint("TOPLEFT", tile, "TOPLEFT", 0, 0)
+        accentBar:SetPoint("BOTTOMLEFT", tile, "BOTTOMLEFT", 0, 0)
+        accentBar:SetColorTexture(color.r, color.g, color.b, 0.95)
+        tile.accentBar = accentBar
+
+        -- Badge de Iniciales
+        local badge = tile:CreateTexture(nil, "ARTWORK")
+        badge:SetSize(24, 24)
+        badge:SetPoint("LEFT", tile, "LEFT", 8, 0)
+        badge:SetColorTexture(color.r * 0.25, color.g * 0.25, color.b * 0.25, 0.9)
+        tile.badge = badge
+
+        -- Texto de iniciales dentro del badge
+        local badgeText = tile:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        badgeText:SetPoint("CENTER", badge, "CENTER", 0, 0)
+        badgeText:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+        badgeText:SetTextColor(color.r, color.g, color.b, 1)
+        badgeText:SetText(GetSoundInitials(item.name))
+        tile.badgeText = badgeText
 
         -- Botón estrella de favoritos en la esquina superior derecha
         local star = CreateFrame("Button", nil, tile)
@@ -700,10 +845,10 @@ function FB:CreateUI()
         star:SetScript("OnLeave", function() GameTooltip:Hide() end)
         tile.star = star
 
-        -- Texto del sonido centrado / ajustado al espacio
+        -- Nombre completo del sonido
         local label = tile:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        label:SetPoint("LEFT", icon, "RIGHT", 6, 0)
-        label:SetPoint("RIGHT", star, "LEFT", -2, 0)
+        label:SetPoint("LEFT", badge, "RIGHT", 7, 0)
+        label:SetPoint("RIGHT", star, "LEFT", -4, 0)
         label:SetJustifyH("LEFT")
         label:SetWordWrap(false)
         label:SetText(item.name)
@@ -739,27 +884,16 @@ function FB:CreateUI()
     -- ==========================================
     -- Barra Inferior de Control
     -- ==========================================
-    combatCheck = CreateFrame("CheckButton", "ForeverBoardCombatCheck", mainFrame, "UICheckButtonTemplate")
-    combatCheck:SetSize(20, 20)
-    combatCheck:SetPoint("BOTTOMLEFT", mainFrame, "BOTTOMLEFT", 10, 6)
-    combatCheck:SetChecked(ForeverBoardDB and ForeverBoardDB.muteInCombat)
-    combatCheck:SetScript("OnClick", function(self)
-        ForeverBoardDB.muteInCombat = self:GetChecked()
-    end)
-
-    local combatLabel = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    combatLabel:SetPoint("LEFT", combatCheck, "RIGHT", 2, 0)
-    combatLabel:SetText(L("MUTE_IN_COMBAT"))
-
-    -- Contador de clips en el centro de la barra inferior
+    -- Contador de clips en la parte izquierda inferior
     countLabel = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    countLabel:SetPoint("CENTER", mainFrame, "BOTTOM", 0, 16)
+    countLabel:SetPoint("BOTTOMLEFT", mainFrame, "BOTTOMLEFT", 14, 10)
     countLabel:SetText(string.format("%d clips", #sounds))
 
     -- Selector de canal de audio a la derecha
     channelBtn = CreateFrame("Button", "ForeverBoardChannelBtn", mainFrame, "UIPanelButtonTemplate")
-    channelBtn:SetSize(105, 18)
-    channelBtn:SetPoint("BOTTOMRIGHT", mainFrame, "BOTTOMRIGHT", -22, 7)
+    channelBtn:SetSize(115, 20)
+    channelBtn:SetPoint("BOTTOMRIGHT", mainFrame, "BOTTOMRIGHT", -22, 6)
+    SkinAsModernButton(channelBtn)
     channelBtn:SetScript("OnClick", function()
         FB:CycleSoundChannel()
     end)
@@ -782,12 +916,24 @@ function FB:CreateUI()
 
     resizeGrip:SetScript("OnMouseDown", function()
         if dropDownMenu then dropDownMenu:Hide() end
+        -- Fijar el anclaje a TOPLEFT antes de StartSizing para evitar saltos o que cambie de tamaño al hacer solo clic
+        local left = mainFrame:GetLeft()
+        local top = mainFrame:GetTop()
+        if left and top then
+            mainFrame:ClearAllPoints()
+            mainFrame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
+        end
         mainFrame:StartSizing("BOTTOMRIGHT")
     end)
     resizeGrip:SetScript("OnMouseUp", function()
         mainFrame:StopMovingOrSizing()
+        local left = mainFrame:GetLeft()
+        local top = mainFrame:GetTop()
         local w, h = mainFrame:GetSize()
         if ForeverBoardDB then
+            ForeverBoardDB.point = "TOPLEFT"
+            ForeverBoardDB.posX = left
+            ForeverBoardDB.posY = top
             ForeverBoardDB.width = w
             ForeverBoardDB.height = h
         end
@@ -803,7 +949,21 @@ function FB:CreateUI()
     -- Restaurar posición guardada
     if ForeverBoardDB and ForeverBoardDB.posX and ForeverBoardDB.posY then
         mainFrame:ClearAllPoints()
-        mainFrame:SetPoint(ForeverBoardDB.point or "CENTER", UIParent, ForeverBoardDB.point or "CENTER", ForeverBoardDB.posX, ForeverBoardDB.posY)
+        if ForeverBoardDB.point == "TOPLEFT" then
+            mainFrame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", ForeverBoardDB.posX, ForeverBoardDB.posY)
+        else
+            mainFrame:SetPoint(ForeverBoardDB.point or "CENTER", UIParent, ForeverBoardDB.point or "CENTER", ForeverBoardDB.posX, ForeverBoardDB.posY)
+            -- Normalizar inmediatamente a TOPLEFT
+            local left = mainFrame:GetLeft()
+            local top = mainFrame:GetTop()
+            if left and top then
+                mainFrame:ClearAllPoints()
+                mainFrame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
+                ForeverBoardDB.point = "TOPLEFT"
+                ForeverBoardDB.posX = left
+                ForeverBoardDB.posY = top
+            end
+        end
     end
 
     FB:UpdateMuteVisuals()
@@ -829,12 +989,115 @@ function FB:ToggleUI()
             FB:UpdateMuteVisuals()
             FB:UpdateChannelVisuals()
             FB:RefreshSoundList()
+
+            -- Mostrar la guía de bienvenida la primera vez que se abre
+            if ForeverBoardDB and not ForeverBoardDB.hasSeenWelcome then
+                FB:ShowWelcomeGuide()
+            end
         end
     end)
 
     if not ok then
         print("|cff00ccff[ForeverBoard ERROR]|r " .. tostring(err))
     end
+end
+
+-- ==========================================================
+-- Ventana de Guía de Bienvenida (Primer Uso)
+-- ==========================================================
+local welcomeFrame = nil
+function FB:ShowWelcomeGuide()
+    if welcomeFrame then
+        welcomeFrame:Show()
+        return welcomeFrame
+    end
+
+    welcomeFrame = CreateFrame("Frame", "ForeverBoardWelcomeFrame", UIParent)
+    welcomeFrame:SetSize(420, 360)
+    welcomeFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 40)
+    welcomeFrame:SetFrameStrata("DIALOG")
+    welcomeFrame:SetClampedToScreen(true)
+    welcomeFrame:EnableMouse(true)
+    welcomeFrame:SetMovable(true)
+    welcomeFrame:RegisterForDrag("LeftButton")
+    welcomeFrame:SetScript("OnDragStart", welcomeFrame.StartMoving)
+    welcomeFrame:SetScript("OnDragStop", welcomeFrame.StopMovingOrSizing)
+
+    if welcomeFrame.SetBackdrop then
+        welcomeFrame:SetBackdrop({
+            bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+            edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+            tile = true, tileSize = 32, edgeSize = 16,
+            insets = { left = 5, right = 5, top = 5, bottom = 5 }
+        })
+    else
+        local bg = welcomeFrame:CreateTexture(nil, "BACKGROUND")
+        bg:SetAllPoints(true)
+        bg:SetColorTexture(0.08, 0.08, 0.12, 0.98)
+    end
+
+    -- Icono superior decorativo
+    local topIcon = welcomeFrame:CreateTexture(nil, "ARTWORK")
+    topIcon:SetSize(36, 36)
+    topIcon:SetPoint("TOPLEFT", welcomeFrame, "TOPLEFT", 18, -16)
+    topIcon:SetTexture("Interface\\Icons\\INV_Misc_Horn_01")
+
+    -- Título y subtítulo
+    local wTitle = welcomeFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    wTitle:SetPoint("TOPLEFT", topIcon, "TOPRIGHT", 10, -2)
+    wTitle:SetText(L("WELCOME_TITLE"))
+
+    local wSub = welcomeFrame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    wSub:SetPoint("TOPLEFT", wTitle, "BOTTOMLEFT", 0, -3)
+    wSub:SetText(L("WELCOME_SUBTITLE"))
+
+    -- Separador horizontal
+    local line = welcomeFrame:CreateTexture(nil, "ARTWORK")
+    line:SetHeight(1)
+    line:SetPoint("TOPLEFT", topIcon, "BOTTOMLEFT", 0, -10)
+    line:SetPoint("RIGHT", welcomeFrame, "RIGHT", -18, 0)
+    line:SetColorTexture(0.3, 0.3, 0.35, 0.7)
+
+    -- Pasos explicativos rápidos
+    local steps = {
+        { title = L("WELCOME_STEP1_TITLE"), desc = L("WELCOME_STEP1_DESC"), color = "ffffd100" },
+        { title = L("WELCOME_STEP2_TITLE"), desc = L("WELCOME_STEP2_DESC"), color = "ff55ff55" },
+        { title = L("WELCOME_STEP3_TITLE"), desc = L("WELCOME_STEP3_DESC"), color = "ff00ccff" },
+        { title = L("WELCOME_STEP4_TITLE"), desc = L("WELCOME_STEP4_DESC"), color = "ffa335ee" },
+    }
+
+    local prevAnchor = line
+    for i, s in ipairs(steps) do
+        local stTitle = welcomeFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+        stTitle:SetPoint("TOPLEFT", prevAnchor, "BOTTOMLEFT", 0, -10)
+        stTitle:SetPoint("RIGHT", welcomeFrame, "RIGHT", -18, 0)
+        stTitle:SetJustifyH("LEFT")
+        stTitle:SetText("|c" .. s.color .. s.title .. "|r")
+
+        local stDesc = welcomeFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        stDesc:SetPoint("TOPLEFT", stTitle, "BOTTOMLEFT", 0, -2)
+        stDesc:SetPoint("RIGHT", welcomeFrame, "RIGHT", -18, 0)
+        stDesc:SetJustifyH("LEFT")
+        stDesc:SetTextColor(0.82, 0.82, 0.82)
+        stDesc:SetText(s.desc)
+
+        prevAnchor = stDesc
+    end
+
+    -- Botón de Entendido / Cerrar
+    local closeBtn = CreateFrame("Button", nil, welcomeFrame, "UIPanelButtonTemplate")
+    closeBtn:SetSize(180, 26)
+    closeBtn:SetPoint("BOTTOM", welcomeFrame, "BOTTOM", 0, 16)
+    closeBtn:SetText(L("WELCOME_CLOSE_BTN"))
+    SkinAsModernButton(closeBtn)
+    closeBtn:SetScript("OnClick", function()
+        welcomeFrame:Hide()
+        if ForeverBoardDB then
+            ForeverBoardDB.hasSeenWelcome = true
+        end
+    end)
+
+    return welcomeFrame
 end
 
 -- ==========================================================
@@ -864,11 +1127,11 @@ function FB:CreateMinimapButton()
     minimapBtn:SetMovable(true)
     minimapBtn:RegisterForClicks("AnyUp")
 
-    -- Icono interior
+    -- Icono interior (altavoz/cuerno de sonido)
     local icon = minimapBtn:CreateTexture(nil, "BACKGROUND")
     icon:SetSize(21, 21)
     icon:SetPoint("CENTER", minimapBtn, "CENTER", 0, 0)
-    icon:SetTexture("Interface\\Icons\\Spell_ChargePositive")
+    icon:SetTexture("Interface\\Icons\\INV_Misc_Horn_01")
 
     -- Borde circular estándar de Blizzard
     local border = minimapBtn:CreateTexture(nil, "OVERLAY")
@@ -878,8 +1141,8 @@ function FB:CreateMinimapButton()
 
     minimapBtn:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
 
-    -- Mover alrededor del minimapa con Clic Derecho
-    minimapBtn:RegisterForDrag("RightButton")
+    -- Arrastrar con Clic Izquierdo (o Derecho) alrededor del minimapa
+    minimapBtn:RegisterForDrag("LeftButton", "RightButton")
     minimapBtn:SetScript("OnDragStart", function(self)
         self.isDragging = true
         self:SetScript("OnUpdate", function()
@@ -901,9 +1164,9 @@ function FB:CreateMinimapButton()
         self:SetScript("OnUpdate", nil)
     end)
 
-    -- Clic: Abrir/Cerrar SoundBoard
+    -- Clic: Abrir/Cerrar SoundBoard (solo si no se estaba arrastrando)
     minimapBtn:SetScript("OnClick", function(self, button)
-        if button == "LeftButton" then
+        if not self.isDragging then
             FB:ToggleUI()
         end
     end)

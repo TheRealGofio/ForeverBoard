@@ -7,7 +7,7 @@ ForeverBoard = ForeverBoard or {}
 local FB = ForeverBoard
 
 FB.ADDON_PREFIX = "ForeverBoard"
-FB.VERSION = "1.2.0"
+FB.VERSION = "1.3.0"
 FB.SOUND_PATH = "Interface\\AddOns\\ForeverBoard\\sounds\\"
 FB.COOLDOWN = 1.5 -- Segundos de margen entre sonidos para evitar saturación
 FB.lastPlayed = 0
@@ -84,11 +84,6 @@ function FB:PlaySound(soundId, sender, fallbackName)
         return false
     end
 
-    -- Comprobar silenciar en combate
-    if db.muteInCombat and InCombatLockdown and InCombatLockdown() then
-        return false
-    end
-
     local sound = self.soundMap[soundId]
     if not sound then
         local displayName = sender or "Alguien"
@@ -153,7 +148,6 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             scale = 1.0,
             minimapPos = 45,
             isMuted = false,
-            muteInCombat = false,
             soundChannel = "Master",
             favorites = {},
             -- Triggers automáticos
@@ -166,6 +160,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             triggerLoot = true,
             triggerLootSound = "",
             triggerLootIncludeGreens = false,
+            hasSeenWelcome = false,
         }
         for k, v in pairs(defaults) do
             if ForeverBoardDB[k] == nil then
@@ -232,12 +227,14 @@ function FB:GetFirstValidSound()
 end
 
 function FB:GetDefaultTriggerSound(triggerType)
-    if ForeverBoard_DefaultTriggers and ForeverBoard_DefaultTriggers[triggerType] then
+    if ForeverBoard_DefaultTriggers and ForeverBoard_DefaultTriggers[triggerType] ~= nil then
         local defId = ForeverBoard_DefaultTriggers[triggerType]
+        if defId == "" then return nil end
         if self.soundMap and self.soundMap[defId] then
             return defId
         end
     end
+    if triggerType == "loot" then return nil end
     return self:GetFirstValidSound()
 end
 
@@ -265,12 +262,83 @@ function FB:RegisterAutoTriggers()
     local lastDeadTime = 0
     local lastBossKillTime = 0
     local lastLootTime = 0
+    local processedRolls = {}
 
-    local function CheckAndFireLoot(itemLink, rawMsg)
+    local function TriggerLootSound(name, quality, link)
+        local db = ForeverBoardDB or {}
+        local minRarity = db.triggerLootIncludeGreens and 2 or 3
+        if quality and quality >= minRarity then
+            local now = GetTime()
+            if now - lastLootTime > 4 then
+                lastLootTime = now
+                local displayName = link or name or "Objeto"
+                local msg = string.format(FB.L["TRIG_ALERT_LOOT"] or "¡Botín disponible: %s!", displayName)
+                FB:FireAutoTrigger(db.triggerLootSound, msg, "loot")
+            end
+        end
+    end
+
+    local function HandleRollID(rollID)
+        if not rollID or processedRolls[rollID] then return end
+        local db = ForeverBoardDB or {}
+        if not db.triggerLoot then return end
+
+        local texture, name, count, quality = nil, nil, nil, nil
+        if GetLootRollItemInfo then
+            texture, name, count, quality = GetLootRollItemInfo(rollID)
+        end
+
+        local link = GetLootRollItemLink and GetLootRollItemLink(rollID)
+
+        -- Si quality no está disponible de inmediato (cliente descargando datos del server), reintentar
+        if not quality or quality == 0 then
+            if link then
+                local _, _, q = GetItemInfo(link)
+                if q then quality = q end
+            end
+        end
+
+        if quality and quality > 0 then
+            processedRolls[rollID] = true
+            TriggerLootSound(name, quality, link)
+        else
+            -- Reintento breve de 0.15s por si el item estaba descargándose de la caché del servidor
+            if C_Timer and C_Timer.After then
+                C_Timer.After(0.15, function()
+                    if processedRolls[rollID] then return end
+                    local _, rName, _, rQuality = nil, nil, nil, nil
+                    if GetLootRollItemInfo then
+                        _, rName, _, rQuality = GetLootRollItemInfo(rollID)
+                    end
+                    local rLink = GetLootRollItemLink and GetLootRollItemLink(rollID)
+                    if not rQuality or rQuality == 0 then
+                        if rLink then
+                            local _, _, q = GetItemInfo(rLink)
+                            if q then rQuality = q end
+                        end
+                    end
+                    if rQuality and rQuality > 0 then
+                        processedRolls[rollID] = true
+                        TriggerLootSound(rName, rQuality, rLink)
+                    end
+                end)
+            end
+        end
+    end
+
+    -- Hook directo al mostrarse la ventana de dados en la UI (GroupLootFrame_OnShow)
+    if hooksecurefunc and GroupLootFrame_OnShow then
+        hooksecurefunc("GroupLootFrame_OnShow", function(frame)
+            if frame and frame.rollID then
+                HandleRollID(frame.rollID)
+            end
+        end)
+    end
+
+    local function CheckAndFireLootFromText(itemLink, rawMsg)
         if not itemLink then return end
         local itemName, _, itemRarity = GetItemInfo(itemLink)
 
-        -- Si no hay itemRarity por GetItemInfo (no en cache), extraer por color hex
         if not itemRarity then
             local hexColor = (itemLink and itemLink:match("|c(%x%x%x%x%x%x%x%x)"))
                           or (rawMsg and rawMsg:match("|c(%x%x%x%x%x%x%x%x)"))
@@ -290,16 +358,8 @@ function FB:RegisterAutoTriggers()
             end
         end
 
-        local db = ForeverBoardDB or {}
-        local minRarity = db.triggerLootIncludeGreens and 2 or 3
-        if itemRarity and itemRarity >= minRarity then
-            local now = GetTime()
-            if now - lastLootTime > 4 then
-                lastLootTime = now
-                local nameStr = itemName or itemLink
-                local msg = string.format(FB.L["TRIG_ALERT_LOOT"] or "¡Botín disponible: %s!", nameStr)
-                FB:FireAutoTrigger(db.triggerLootSound, msg, "loot")
-            end
+        if itemRarity then
+            TriggerLootSound(itemName, itemRarity, itemLink)
         end
     end
 
@@ -339,14 +399,9 @@ function FB:RegisterAutoTriggers()
 
         elseif event == "START_LOOT_ROLL" then
             -- Salta cuando la ventana de dados (Necesidad / Codicia) aparece en pantalla
-            if db.triggerLoot then
-                local rollID = ...
-                if rollID and GetLootRollItemLink then
-                    local rollLink = GetLootRollItemLink(rollID)
-                    if rollLink then
-                        CheckAndFireLoot(rollLink, rollLink)
-                    end
-                end
+            local rollID = ...
+            if rollID then
+                HandleRollID(rollID)
             end
 
         elseif event == "CHAT_MSG_LOOT" or event == "CHAT_MSG_SYSTEM" then
@@ -359,7 +414,7 @@ function FB:RegisterAutoTriggers()
                                   or message:match("(|Hitem:[^|]+|h.-|h)")
 
                     if itemLink then
-                        CheckAndFireLoot(itemLink, message)
+                        CheckAndFireLootFromText(itemLink, message)
                     end
                 end
             end
@@ -388,6 +443,10 @@ SlashCmdList["FOREVERBOARD"] = function(msg)
         print("|cff00ccff[ForeverBoard]|r Lista de sonidos disponibles:")
         for _, s in ipairs(ForeverBoard_Sounds or {}) do
             print(string.format(" - |cffffffff%s|r (|cffffe066%s|r): %s", s.id, s.name, s.desc or ""))
+        end
+    elseif msg == "help" or msg == "guide" or msg == "guia" then
+        if FB.ShowWelcomeGuide then
+            FB:ShowWelcomeGuide()
         end
     elseif msg == "testloot" then
         local testBlueLink = "|cff0070dd|Hitem:19019:0:0:0|h[Objeto de Prueba Azul]|h|r"

@@ -15,7 +15,7 @@ jobs:
       - name: Package Addon for WowUp
         run: |
           mkdir -p package/ForeverBoard
-          cp -r Core.lua UI.lua Sounds.lua ForeverBoard.toc README.md CHANGELOG.md sounds actualizar_sonidos.bat package/ForeverBoard/
+          cp -r Core.lua UI.lua Localization.lua Sounds.lua ForeverBoard.toc README.md CHANGELOG.md sounds actualizar_sonidos.bat package/ForeverBoard/
           cd package
           zip -r ../ForeverBoard.zip ForeverBoard
           cd ..

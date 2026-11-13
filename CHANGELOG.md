@@ -6,6 +6,36 @@ El formato sigue las convenciones de [Keep a Changelog](https://keepachangelog.c
 
 ---
 
+## [1.3.0] - 2026-11-13
+
+### 🎨 Diseño y Experiencia de Usuario
+- **Tarjetas estilo Discord Soundboard**:
+  - Reemplazados los iconos de WoW por barras de acento y badges minimalistas con iniciales y paleta cromática dinámica determinista.
+  - Nombre completo de cada audio 100% visible, legible y estilizado.
+- **Botones planos modernos**:
+  - Pestañas, selector de canales y controles rediseñados con bordes finos translúcidos estilo Discord.
+  - Eliminados caracteres multibyte o glifos Unicode que generaban rectángulos vacíos en WoW Classic.
+- **Redimensionamiento estable**:
+  - Coordenadas de marco normalizadas siempre a `TOPLEFT` absoluto, eliminando saltos o cambios de tamaño involuntarios al hacer clic en el asa de redimensionar.
+- **Guía de bienvenida interactiva**:
+  - Tutorial rápido en ventana modal para nuevos usuarios en su primera apertura del addon.
+- **Icono del minimapa**:
+  - Icono circular estilizado con altavoz de audio. Arrastrable con clic izquierdo alrededor del minimapa.
+
+### 🔊 Sonidos y Eventos Automáticos
+- **Catálogo ampliado**: 25 clips de sonido incluidos por defecto (*Bruh*, *Discord*, *Death Fortnite*, *Explosion*, *El diablo*, *La cebolla*, *Maldito bluetooth*, *Me están matando*, *Mercadona*, *Shocked*, *WoW*, etc.).
+- **Nuevos valores predeterminados para disparadores automáticos**:
+  - *Subida de nivel (Ding!)*: FF Fanfare.
+  - *Victoria en Boss*: Faaah.
+  - *Muerte del personaje (Wipe)*: Gemido anime.
+  - *Botín especial / Dados*: Sin sonido por defecto (`[Ninguno]` / `[None]`).
+- **Disparador de botín / tirada de dados**:
+  - Activación inmediata al aparecer el marco de tirada de dados (`START_LOOT_ROLL`) para objetos azules o superiores (con opción para incluir verdes).
+- **Traducción bilingüe completa**:
+  - Todas las cadenas traducidas y sincronizadas al español e inglés.
+
+---
+
 ## [1.2.0] - 2026-11-08
 
 ### 🎨 Gran Rediseño de Interfaz (Estilo Discord Soundboard)
